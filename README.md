@@ -112,20 +112,20 @@ The `docker-compose.yml` file is pre-configured for Coolify:
 - **Runtime**: Python 3.11
 - **Framework**: FastMCP
 - **Browser**: Playwright (Chromium)
-- **Container**: Docker with slim-buster base image
+- **Container**: Official Microsoft Playwright Docker image (Ubuntu Jammy)
 
 ### Dependencies
-The Dockerfile includes all necessary system dependencies for running Playwright's Chromium browser in a headless environment:
-- NSS libraries for security
-- GTK libraries for rendering
-- Audio libraries for media support
-- Compositor libraries for complex layouts
+The Dockerfile uses the official Playwright Python image which includes:
+- All necessary system dependencies pre-installed
+- Chromium browser pre-configured
+- Optimized for production use
+- Regular security updates from Microsoft
 
 ### Image Optimization
-- Multi-layer Docker build for efficient caching
-- System dependencies installed first
-- Python dependencies cached separately
-- Playwright browsers pre-installed in the image
+- Based on official Playwright image (no manual dependency management)
+- Efficient layer caching for fast rebuilds
+- Python dependencies installed separately for caching
+- Production-ready and battle-tested
 
 ## Usage Example
 
@@ -154,4 +154,3 @@ MIT License - feel free to use this in your projects!
 ## Support
 
 For issues or questions, please open an issue in the repository.
-
