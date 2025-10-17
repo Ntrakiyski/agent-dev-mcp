@@ -5,6 +5,10 @@ services:
     ports:
       - "8000:8000"
     restart: unless-stopped
+    init: true  # Recommended: Avoids zombie processes
+    ipc: host   # Recommended: Prevents Chromium out-of-memory issues
     environment:
       - PYTHONUNBUFFERED=1
-
+    # Uncomment for development/debugging if you see Chromium launch errors:
+    # cap_add:
+    #   - SYS_ADMIN

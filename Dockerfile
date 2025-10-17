@@ -1,5 +1,6 @@
 # Use official Playwright Python image with all dependencies pre-installed
-FROM mcr.microsoft.com/playwright/python:v1.40.0-jammy
+# Using Noble (Ubuntu 24.04 LTS) for latest security updates
+FROM mcr.microsoft.com/playwright/python:v1.49.0-noble
 
 # Set working directory
 WORKDIR /app
@@ -16,5 +17,6 @@ COPY server.py .
 # Expose MCP server port
 EXPOSE 8000
 
-# Run the MCP server
+# Run the MCP server with recommended Docker flags
+# --init flag is handled by docker-compose/runtime, not in CMD
 CMD ["python", "server.py"]
