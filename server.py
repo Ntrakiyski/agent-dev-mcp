@@ -965,83 +965,83 @@ async def github_list_repos(
         }
 
 
-@mcp.tool()
-async def github_search_repo(
-    query: str,
-    username: Optional[str] = None,
-    api_token: Optional[str] = None
-) -> dict:
-    """
-    Search for a specific GitHub repository.
+# @mcp.tool()
+# async def github_search_repo(
+#     query: str,
+#     username: Optional[str] = None,
+#     api_token: Optional[str] = None
+# ) -> dict:
+#     """
+#     Search for a specific GitHub repository.
     
-    Args:
-        query: Search query (required)
-        username: Filter by username (optional) always use username Ntrakiyski
-        api_token: GitHub API token (optional, defaults to GITHUB_API_TOKEN env var)
+#     Args:
+#         query: Search query (required)
+#         username: Filter by username (optional) always use username Ntrakiyski
+#         api_token: GitHub API token (optional, defaults to GITHUB_API_TOKEN env var)
     
-    Returns:
-        dict: {
-            'success': bool,
-            'message': str,
-            'repos': list[dict],
-            'total_count': int
-        }
+#     Returns:
+#         dict: {
+#             'success': bool,
+#             'message': str,
+#             'repos': list[dict],
+#             'total_count': int
+#         }
     
-    Examples:
-        - github_search_repo("forest")
-        - github_search_repo("react", username="facebook")
-    """
-    logger.info(f"Searching GitHub repositories: {query}")
+#     Examples:
+#         - github_search_repo("forest")
+#         - github_search_repo("react", username="facebook")
+#     """
+#     logger.info(f"Searching GitHub repositories: {query}")
     
-    token = api_token or GITHUB_API_TOKEN
-    if not token:
-        return {
-            'success': False,
-            'message': 'GITHUB_API_TOKEN environment variable must be set'
-        }
+#     token = api_token or GITHUB_API_TOKEN
+#     if not token:
+#         return {
+#             'success': False,
+#             'message': 'GITHUB_API_TOKEN environment variable must be set'
+#         }
     
-    try:
-        # Build search query
-        search_query = f"{query} in:name"
-        if username:
-            search_query += f" user:{username}"
+#     try:
+#         # Build search query
+#         search_query = f"{query} in:name"
+#         if username:
+#             search_query += f" user:{username}"
         
-        url = f"{GITHUB_API_BASE_URL}/search/repositories"
-        headers = {
-            "Authorization": f"token {token}",
-            "Accept": "application/vnd.github+json",
-            "X-GitHub-Api-Version": "2022-11-28"
-        }
-        params = {"q": search_query}
+#         url = f"{GITHUB_API_BASE_URL}/search/repositories"
+#         headers = {
+#             "Authorization": f"token {token}",
+#             "Accept": "application/vnd.github+json",
+#             "X-GitHub-Api-Version": "2022-11-28"
+#         }
+#         params = {"q": search_query}
         
-        async with aiohttp.ClientSession() as session:
-            async with session.get(url, headers=headers, params=params) as response:
-                result = await response.json()
+#         async with aiohttp.ClientSession() as session:
+#             async with session.get(url, headers=headers, params=params) as response:
+#                 result = await response.json()
                 
-                if response.status == 200:
-                    repos = [{'name': r.get('name'), 'full_name': r.get('full_name'),
-                             'url': r.get('html_url'), 'description': r.get('description')}
-                            for r in result.get('items', [])]
-                    logger.info(f"Found {result.get('total_count', 0)} repositories")
-                    return {
-                        'success': True,
-                        'message': f"Found {result.get('total_count', 0)} repositories",
-                        'repos': repos,
-                        'total_count': result.get('total_count', 0)
-                    }
-                else:
-                    error_msg = result.get('message', f'API request failed with status {response.status}')
-                    raise Exception(error_msg)
+#                 if response.status == 200:
+#                     repos = [{'name': r.get('name'), 'full_name': r.get('full_name'),
+#                              'url': r.get('html_url'), 'description': r.get('description')}
+#                             for r in result.get('items', [])]
+#                     logger.info(f"Found {result.get('total_count', 0)} repositories")
+#                     return {
+#                         'success': True,
+#                         'message': f"Found {result.get('total_count', 0)} repositories",
+#                         'repos': repos,
+#                         'total_count': result.get('total_count', 0)
+#                     }
+#                 else:
+#                     error_msg = result.get('message', f'API request failed with status {response.status}')
+#                     raise Exception(error_msg)
                     
-    except Exception as e:
-        error_msg = f"Failed to search repositories: {str(e)}"
-        logger.error(error_msg)
-        return {
-            'success': False,
-            'message': error_msg,
-            'repos': [],
-            'total_count': 0
-        }
+#     except Exception as e:
+#         error_msg = f"Failed to search repositories: {str(e)}"
+#         logger.error(error_msg)
+#         return {
+#             'success': False,
+#             'message': error_msg,
+#             'repos': [],
+#             'total_count': 0
+#         }
 
 
 # =============================================================================
