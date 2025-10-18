@@ -691,7 +691,7 @@ async def codegen_list_agent_runs(
     
     try:
         # Prepare API request
-        url = f"{CODEGEN_BASE_URL}/v1/organizations/{org}/agent-runs"
+        url = f"{CODEGEN_BASE_URL}/v1/organizations/{org}/agents/runs"
         headers = {
             "Authorization": f"Bearer {token}"
         }
