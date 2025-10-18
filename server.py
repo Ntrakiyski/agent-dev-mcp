@@ -465,7 +465,7 @@ async def codegen_create_agent_run(
     
     try:
         # Prepare API request
-        url = f"{CODEGEN_BASE_URL}/v1/organizations/{org}/agent-run"
+        url = f"{CODEGEN_BASE_URL}/v1/organizations/{org}/agent/run"
         headers = {
             "Authorization": f"Bearer {token}",
             "Content-Type": "application/json"
@@ -541,7 +541,7 @@ async def codegen_get_agent_run(
     
     try:
         # Prepare API request
-        url = f"{CODEGEN_BASE_URL}/v1/organizations/{org}/agent-run/{agent_run_id}"
+        url = f"{CODEGEN_BASE_URL}/v1/organizations/{org}/agent/run/{agent_run_id}"
         headers = {
             "Authorization": f"Bearer {token}"
         }
@@ -615,7 +615,7 @@ async def codegen_reply_to_agent_run(
     
     try:
         # Prepare API request
-        url = f"{CODEGEN_BASE_URL}/v1/organizations/{org}/agent-run/{agent_run_id}/reply"
+        url = f"{CODEGEN_BASE_URL}/v1/organizations/{org}/agent/run/resume"
         headers = {
             "Authorization": f"Bearer {token}",
             "Content-Type": "application/json"
