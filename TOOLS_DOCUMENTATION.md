@@ -299,14 +299,15 @@ codegen_get_agent_run("123456")
 
 ### 3. `codegen_reply_to_agent_run`
 
-**Description**: Reply to an existing Codegen agent run with additional instructions or feedback.
+**Description**: Resume a paused Codegen agent run with additional instructions or feedback.
 
 **Input Parameters**:
 
 | Parameter | Type | Required | Default | Description |
 |-----------|------|----------|---------|-------------|
-| `agent_run_id` | string | ✅ Yes | - | ID of the agent run to reply to |
-| `message` | string | ✅ Yes | - | Your reply message to the agent |
+| `agent_run_id` | integer | ✅ Yes | - | ID of the agent run to resume (must be an integer) |
+| `prompt` | string | ✅ Yes | - | Your prompt/message to the agent |
+| `images` | list[string] | ❌ No | `null` | Optional list of base64 encoded data URIs for images |
 | `org_id` | string | ❌ No | env:`CODEGEN_ORG_ID` | Organization ID |
 | `api_token` | string | ❌ No | env:`CODEGEN_API_TOKEN` | API token |
 
@@ -315,31 +316,47 @@ codegen_get_agent_run("123456")
 ```json
 {
   "success": true,
-  "message": "Reply sent successfully",
-  "agent_run_id": "123456",
-  "status": "processing"
+  "message": "Agent run resumed successfully",
+  "agent_run_id": 123456,
+  "status": "processing",
+  "result": {
+    "id": 123456,
+    "organization_id": 789,
+    "status": "processing",
+    "created_at": "2024-01-01T00:00:00Z",
+    "web_url": "https://codegen.com/...",
+    ...
+  }
 }
 ```
 
 **Examples**:
 
 ```python
-codegen_reply_to_agent_run("123456", "Please also add unit tests")
+# Basic usage with integer ID
+codegen_reply_to_agent_run(123456, "Please also add unit tests")
+
+# With organization ID
+codegen_reply_to_agent_run(123456, "Looks good, ship it!", org_id="123")
+
+# With image attachment
+codegen_reply_to_agent_run(123456, "Check this screenshot", images=["data:image/png;base64,..."])
 ```
 
 ---
 
 ### 4. `codegen_list_agent_runs`
 
-**Description**: List all Codegen agent runs for an organization.
+**Description**: List Codegen agent runs for an organization with optional filtering and pagination.
 
 **Input Parameters**:
 
 | Parameter | Type | Required | Default | Description |
 |-----------|------|----------|---------|-------------|
-| `limit` | integer | ❌ No | `10` | Maximum number of runs to return |
-| `offset` | integer | ❌ No | `0` | Number of runs to skip |
-| `status` | string | ❌ No | `null` | Filter by status |
+| `limit` | integer | ❌ No | `10` | Maximum number of runs to return (range: 1-100) |
+| `skip` | integer | ❌ No | `0` | Number of runs to skip for pagination (must be >= 0) |
+| `user_id` | integer | ❌ No | `null` | Filter by user ID who initiated the agent runs |
+| `source_type` | string | ❌ No | `null` | Filter by source type (e.g., 'LOCAL', 'SLACK', 'GITHUB', 'API', 'LINEAR') |
 | `org_id` | string | ❌ No | env:`CODEGEN_ORG_ID` | Organization ID |
 | `api_token` | string | ❌ No | env:`CODEGEN_API_TOKEN` | API token |
 
@@ -351,24 +368,38 @@ codegen_reply_to_agent_run("123456", "Please also add unit tests")
   "message": "Retrieved 5 agent runs",
   "runs": [
     {
-      "id": "123456",
+      "id": 123456,
+      "organization_id": 789,
       "status": "completed",
-      "prompt": "Review PR #123",
-      ...
+      "created_at": "2024-01-01T00:00:00Z",
+      "web_url": "https://codegen.com/...",
+      "summary": "Review PR #123",
+      "source_type": "GITHUB",
+      "github_pull_requests": [...],
+      "metadata": {}
     }
   ],
-  "total": 5
+  "total": 5,
+  "page": 1,
+  "size": 5,
+  "pages": 1
 }
 ```
 
 **Examples**:
 
 ```python
-# List all agent runs
+# List all agent runs with default pagination
 codegen_list_agent_runs()
 
-# List completed runs only
-codegen_list_agent_runs(limit=20, status="completed")
+# List with custom pagination
+codegen_list_agent_runs(limit=20, skip=10)
+
+# Filter by user and source type
+codegen_list_agent_runs(user_id=123, source_type="SLACK")
+
+# Combine filters
+codegen_list_agent_runs(limit=50, user_id=456, source_type="GITHUB")
 ```
 
 ---
