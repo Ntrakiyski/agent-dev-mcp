@@ -55,7 +55,8 @@ async def take_screenshot(
     full_page: bool = False,
     viewport_width: int = 1920,
     viewport_height: int = 1080,
-    timeout: int = 30000
+    timeout: int = 30000,
+    delay: int = 0
 ) -> str:
     """
     Take a screenshot of a web page using Chromium.
@@ -66,6 +67,8 @@ async def take_screenshot(
         viewport_width: Browser viewport width in pixels (default: 1920)
         viewport_height: Browser viewport height in pixels (default: 1080)
         timeout: Page load timeout in milliseconds (default: 30000)
+        delay: Additional delay in milliseconds after page loads before taking screenshot (default: 0)
+               Useful for waiting for animations, lazy-loaded content, etc.
     
     Returns:
         Base64-encoded PNG screenshot
@@ -74,8 +77,9 @@ async def take_screenshot(
         - take_screenshot("https://producthunt.com")
         - take_screenshot("https://example.com", full_page=True)
         - take_screenshot("https://example.com", viewport_width=1280, viewport_height=720)
+        - take_screenshot("https://example.com", delay=2000)  # Wait 2 seconds after load
     """
-    logger.info(f"Taking screenshot of {url}")
+    logger.info(f"Taking screenshot of {url} (viewport: {viewport_width}x{viewport_height}, delay: {delay}ms)")
     
     try:
         # Get browser instance
@@ -87,9 +91,24 @@ async def take_screenshot(
         )
         
         try:
-            # Navigate to URL
+            # Navigate to URL with multiple wait strategies for full page load
             logger.info(f"Navigating to {url}...")
-            await page.goto(url, timeout=timeout, wait_until='networkidle')
+            
+            # First, wait for the page to load (DOM content loaded)
+            await page.goto(url, timeout=timeout, wait_until='load')
+            logger.info("Page loaded (DOM content ready)")
+            
+            # Wait for network to be idle (all resources loaded)
+            try:
+                await page.wait_for_load_state('networkidle', timeout=5000)
+                logger.info("Network idle - all resources loaded")
+            except Exception as e:
+                logger.warning(f"Network idle timeout (this is often normal): {e}")
+            
+            # Additional delay if specified (for animations, lazy loading, etc.)
+            if delay > 0:
+                logger.info(f"Waiting additional {delay}ms after page load...")
+                await asyncio.sleep(delay / 1000)  # Convert ms to seconds
             
             # Take screenshot
             logger.info("Capturing screenshot...")
