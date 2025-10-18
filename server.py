@@ -576,7 +576,7 @@ async def codegen_get_agent_run(
 async def codegen_reply_to_agent_run(
     agent_run_id: int,
     prompt: str,
-    images: Optional[List[str]] = None,
+    images: Optional[list[str]] = None,
     org_id: Optional[str] = None,
     api_token: Optional[str] = None
 ) -> dict:
