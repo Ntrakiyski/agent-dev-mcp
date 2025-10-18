@@ -84,7 +84,7 @@ async def test_mcp_server():
         print("🏥 Testing health check...")
         try:
             response = await client.post(
-                "http://localhost:8000/call-tool",
+                "http://localhost:8000/mcp/tools/call",
                 json={
                     "name": "health_check",
                     "arguments": {}
@@ -111,7 +111,7 @@ async def test_mcp_server():
         print("   Taking screenshot of example.com...")
         
         response = await client.post(
-            "http://localhost:8000/call-tool",
+            "http://localhost:8000/mcp/tools/call",
             json={
                 "name": "take_screenshot",
                 "arguments": {
@@ -213,4 +213,3 @@ if __name__ == "__main__":
     print("=" * 70)
     print("\nScreenshots saved to: ./screenshots/")
     print("Check the 'screenshots' folder for the captured images.")
-

@@ -25,7 +25,7 @@ except Exception as e:
 print("2️⃣ Testing health_check tool")
 try:
     response = requests.post(
-        "http://localhost:8000/call-tool",
+        "http://localhost:8000/mcp/tools/call",
         json={"name": "health_check", "arguments": {}},
         headers={"Content-Type": "application/json"},
         timeout=10
@@ -39,7 +39,7 @@ except Exception as e:
 print("3️⃣ Testing get_page_title tool with example.com")
 try:
     response = requests.post(
-        "http://localhost:8000/call-tool",
+        "http://localhost:8000/mcp/tools/call",
         json={
             "name": "get_page_title",
             "arguments": {"url": "https://example.com"}
@@ -56,4 +56,3 @@ except Exception as e:
 print("✅ Server check completed!")
 print("\nIf all tests passed, the server is working correctly.")
 print("The browser error is expected - MCP servers require SSE headers.")
-
