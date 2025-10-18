@@ -951,7 +951,7 @@ async def github_list_repos(
         }
     
     try:
-        url = f"{GITHUB_API_BASE_URL}/users/Ntrakiyki/repos"
+        url = f"{GITHUB_API_BASE_URL}/users/Ntrakiyski/repos"
         headers = {
             "Authorization": f"token {token}",
             "Accept": "application/vnd.github+json",
