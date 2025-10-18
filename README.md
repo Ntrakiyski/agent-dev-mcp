@@ -5,10 +5,28 @@ A production-ready Model Context Protocol (MCP) server that provides Chrome/Chro
 ## Features ✨
 
 - **Screenshot Capture**: Take full-page or viewport screenshots of any website
+- **Configurable Parameters**: Custom delay, viewport sizes, and full-page capture
 - **Page Information**: Extract page titles and metadata
 - **Health Monitoring**: Built-in health check endpoint
 - **Production-Ready**: Optimized for Docker deployment with proper resource management
 - **FastMCP Integration**: HTTP transport for remote access
+- **Coolify-Ready**: Deploy to Coolify with zero configuration
+
+## 🚀 Deploy to Coolify (Zero Configuration!)
+
+**Want to deploy to production instantly?**
+
+👉 **[See DEPLOY.md for complete Coolify deployment guide](DEPLOY.md)**
+
+**Quick version:**
+1. Connect this GitHub repo to Coolify
+2. Coolify detects `docker-compose.yml` automatically
+3. Click "Deploy"
+4. Done! Chrome/Chromium dependencies are handled automatically ✅
+
+No configuration needed. No manual setup. Just works. 🎉
+
+---
 
 ## Quick Start 🚀
 
@@ -321,4 +339,3 @@ MIT License - feel free to use in your projects!
 ## Support 💬
 
 Having issues? Please check the troubleshooting section or open an issue on GitHub.
-

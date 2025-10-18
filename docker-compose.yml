@@ -16,15 +16,18 @@ services:
     # Playwright spawns multiple processes that need proper management
     init: true
     
+    # CRITICAL: Shared memory size for Chromium
+    # Alternative to ipc:host if platform restricts it
+    shm_size: '2gb'
+    
     environment:
       - PYTHONUNBUFFERED=1
     
-    # Resource limits based on production recommendations
+    # Resource limits - Chromium needs minimum 2GB RAM
     deploy:
       resources:
         limits:
-          memory: 2048M  # Minimum 2GB for Playwright
-          cpus: '1.0'
+          memory: 2048M  # Minimum 2GB for Playwright + Chromium
+          cpus: '2.0'    # 2 CPUs for better performance
         reservations:
           memory: 1024M  # Reserve 1GB minimum
-
