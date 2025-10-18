@@ -696,7 +696,7 @@ async def codegen_list_agent_runs(
         }
         params = {
             "limit": limit,
-            "offset": offset
+            "skip": offset  # FIXED: Changed from "offset" to "skip"
         }
         if status:
             params["status"] = status
