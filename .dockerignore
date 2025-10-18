@@ -8,30 +8,29 @@ env/
 venv/
 ENV/
 .venv
-pip-log.txt
-pip-delete-this-directory.txt
-
-# Screenshots
-screenshots/
 
 # Testing
+screenshots/
 .pytest_cache/
 .coverage
 htmlcov/
-*.cover
-.hypothesis/
 
 # IDE
 .vscode/
 .idea/
 *.swp
 *.swo
-*~
 
-# OS
-.DS_Store
-Thumbs.db
+# Git
+.git/
+.gitignore
 
-# Logs
-*.log
+# Documentation
+README.md
+*.md
+
+# Docker
+Dockerfile
+docker-compose.yml
+.dockerignore
 

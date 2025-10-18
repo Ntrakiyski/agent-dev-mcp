@@ -1,14 +1,30 @@
 version: "3.8"
+
 services:
-  mcp-server:
+  chrome-mcp:
     build: .
+    container_name: chrome-mcp-server
     ports:
       - "8000:8000"
     restart: unless-stopped
-    init: true  # Recommended: Avoids zombie processes
-    ipc: host   # Recommended: Prevents Chromium out-of-memory issues
+    
+    # CRITICAL: IPC host mode prevents Chromium memory crashes
+    # Without this, Chrome will fail with shared memory errors
+    ipc: host
+    
+    # CRITICAL: Init mode prevents zombie processes
+    # Playwright spawns multiple processes that need proper management
+    init: true
+    
     environment:
       - PYTHONUNBUFFERED=1
-    # Uncomment for development/debugging if you see Chromium launch errors:
-    # cap_add:
-    #   - SYS_ADMIN
+    
+    # Resource limits based on production recommendations
+    deploy:
+      resources:
+        limits:
+          memory: 2048M  # Minimum 2GB for Playwright
+          cpus: '1.0'
+        reservations:
+          memory: 1024M  # Reserve 1GB minimum
+

@@ -1,536 +1,324 @@
-# Enhanced Screenshot MCP Server
+# Chrome MCP Server 🌐📸
 
-A powerful Python-based MCP (Model Context Protocol) server using FastMCP and Playwright that provides comprehensive web interaction capabilities for AI agents. Capture screenshots with granular control, extract page content, and perform browser interactions.
+A production-ready Model Context Protocol (MCP) server that provides Chrome/Chromium browser automation capabilities using Playwright. Perfect for taking screenshots, getting page titles, and browser automation tasks.
 
-## 🚀 Features
+## Features ✨
 
-### 📸 Screenshot Capture
-- **Flexible Viewports**: Custom width/height or use mobile/desktop presets
-- **High-DPI Support**: `device_scale_factor` for retina displays
-- **Color Scheme Control**: Force light or dark mode rendering
-- **Smart Waiting**: Wait for specific selectors before capture
-- **Multiple Formats**: PNG (lossless) or JPEG (smaller files) with quality control
-- **Full Page or Viewport**: Capture entire scrollable page or just visible area
+- **Screenshot Capture**: Take full-page or viewport screenshots of any website
+- **Page Information**: Extract page titles and metadata
+- **Health Monitoring**: Built-in health check endpoint
+- **Production-Ready**: Optimized for Docker deployment with proper resource management
+- **FastMCP Integration**: HTTP transport for remote access
 
-### 📄 Content Extraction
-- **Page Content**: Extract full HTML source or visible text
-- **Element Targeting**: Extract specific elements by CSS selector
-- **Format Options**: Get content as HTML or plain text
-
-### 🖱️ Browser Interactions
-- **Click Elements**: Interact with buttons, links, and UI elements
-- **Type Text**: Fill forms and input fields
-- **Scroll Pages**: Reveal content below the fold
-- **Wait Actions**: Pause for animations or loading
-- **Capture Results**: Optionally screenshot after interactions
-
-### 🛡️ Production Ready
-- **Docker Optimized**: Official Playwright image with all dependencies
-- **Error Handling**: Comprehensive error messages and graceful degradation
-- **Resource Management**: Proper browser lifecycle and cleanup
-- **Type Safe**: Structured responses with clear contracts
-
-## 📋 Available Tools
-
-### 1. `capture_screenshot` - Advanced Screenshot Tool
-
-The main screenshot tool with full customization.
-
-**Parameters:**
-```python
-{
-  "url": str,                    # Required: URL to capture
-  "viewport_width": int,         # Default: 1920
-  "viewport_height": int,        # Default: 1080
-  "device_scale_factor": float,  # Default: 1.0 (use 2.0 for retina)
-  "color_scheme": str,           # "light", "dark", or "no-preference" (default)
-  "full_page": bool,             # Default: False
-  "wait_for_selector": str,      # Optional: CSS selector to wait for
-  "wait_timeout": int,           # Default: 30000 (ms)
-  "output_format": str,          # "png" (default) or "jpeg"
-  "jpeg_quality": int            # Default: 80 (0-100, for JPEG only)
-}
-```
-
-**Examples:**
-```json
-// Desktop screenshot
-{"url": "https://example.com"}
-
-// Mobile with dark mode
-{
-  "url": "https://example.com",
-  "viewport_width": 390,
-  "viewport_height": 844,
-  "color_scheme": "dark"
-}
-
-// High-DPI retina capture
-{
-  "url": "https://example.com",
-  "device_scale_factor": 2.0
-}
-
-// Wait for content to load
-{
-  "url": "https://example.com",
-  "wait_for_selector": ".main-content"
-}
-
-// JPEG for smaller file size
-{
-  "url": "https://example.com",
-  "output_format": "jpeg",
-  "jpeg_quality": 90
-}
-```
-
-### 2. `screenshot_mobile` - Mobile Preset (390x844)
-
-Convenience wrapper for mobile screenshots.
-
-**Parameters:**
-```python
-{
-  "url": str,         # Required
-  "full_page": bool   # Default: True
-}
-```
-
-### 3. `screenshot_desktop` - Desktop Preset (1920x1080)
-
-Convenience wrapper for desktop screenshots.
-
-**Parameters:**
-```python
-{
-  "url": str,         # Required
-  "full_page": bool   # Default: True
-}
-```
-
-### 4. `get_page_content` - Extract Page Content
-
-Extract HTML or text content from a web page.
-
-**Parameters:**
-```python
-{
-  "url": str,                  # Required
-  "format": str,               # "html" or "text" (default: "text")
-  "wait_for_selector": str,    # Optional
-  "wait_timeout": int          # Default: 30000 (ms)
-}
-```
-
-**Returns:**
-```python
-{
-  "content": str,           # Extracted content
-  "url": str,               # Final URL after redirects
-  "title": str,             # Page title
-  "format": str,            # Format used
-  "content_length": int,    # Length in characters
-  "error": str              # Optional error message
-}
-```
-
-**Examples:**
-```json
-// Get page text
-{"url": "https://example.com"}
-
-// Get full HTML
-{"url": "https://example.com", "format": "html"}
-
-// Wait for dynamic content
-{
-  "url": "https://example.com",
-  "wait_for_selector": "article"
-}
-```
-
-### 5. `get_element_content` - Extract Specific Elements
-
-Extract content from a specific element using CSS selectors.
-
-**Parameters:**
-```python
-{
-  "url": str,             # Required
-  "selector": str,        # Required: CSS selector
-  "format": str,          # "html" or "text" (default: "text")
-  "wait_timeout": int     # Default: 30000 (ms)
-}
-```
-
-**Returns:**
-```python
-{
-  "content": str | None,       # Extracted content
-  "selector_matched": bool,    # Whether selector found element
-  "selector": str,             # Selector used
-  "format": str,               # Format used
-  "error": str                 # Optional error message
-}
-```
-
-**Examples:**
-```json
-// Extract article text
-{
-  "url": "https://example.com/article",
-  "selector": "article.main"
-}
-
-// Extract specific heading
-{
-  "url": "https://example.com",
-  "selector": "h1",
-  "format": "text"
-}
-```
-
-### 6. `interact_and_capture` - Browser Interactions
-
-Perform actions and optionally capture the result.
-
-**Parameters:**
-```python
-{
-  "url": str,                      # Required
-  "actions": [                     # Required: List of actions
-    {
-      "type": "click",            # Action types: click, type, wait, scroll
-      "selector": ".button"       # For click/type actions
-    },
-    {
-      "type": "type",
-      "selector": "#input",
-      "value": "search term"      # For type actions
-    },
-    {
-      "type": "wait",
-      "duration": 1000            # Milliseconds for wait actions
-    },
-    {
-      "type": "scroll",
-      "amount": 500               # Pixels for scroll actions
-    }
-  ],
-  "capture_screenshot": bool,     # Default: True
-  "screenshot_format": str,       # "png" or "jpeg" (default: "png")
-  "viewport_width": int,          # Default: 1920
-  "viewport_height": int          # Default: 1080
-}
-```
-
-**Returns:**
-```python
-{
-  "success": bool,                # All actions completed successfully
-  "screenshot": Image | None,     # Image if capture_screenshot=True
-  "final_url": str,               # URL after all actions
-  "actions_completed": int,       # Number of successful actions
-  "errors": [str]                 # List of error messages
-}
-```
-
-**Examples:**
-```json
-// Click button and capture
-{
-  "url": "https://example.com",
-  "actions": [
-    {"type": "click", "selector": ".menu-button"}
-  ]
-}
-
-// Fill search form
-{
-  "url": "https://example.com/search",
-  "actions": [
-    {"type": "type", "selector": "#search-input", "value": "playwright"},
-    {"type": "click", "selector": "#search-button"}
-  ]
-}
-
-// Scroll to reveal content
-{
-  "url": "https://example.com",
-  "actions": [
-    {"type": "scroll", "amount": 1000},
-    {"type": "wait", "duration": 500}
-  ]
-}
-```
-
-## 🔧 Local Development
-
-### Prerequisites
-- Python 3.11+
-- pip
-
-### Installation
-
-1. Install dependencies:
-```bash
-pip install -r requirements.txt
-```
-
-2. Install Playwright browsers:
-```bash
-python -m playwright install chromium
-```
-
-3. Run the server:
-```bash
-python server.py
-```
-
-## 🐳 Docker Deployment
+## Quick Start 🚀
 
 ### Using Docker Compose (Recommended)
 
-The docker-compose.yml includes recommended Playwright Docker configurations:
-
 ```bash
+# Build and start the server
 docker-compose up -d
+
+# View logs
+docker-compose logs -f
+
+# Stop the server
+docker-compose down
 ```
 
-The configuration includes:
-- `init: true` - Prevents zombie processes
-- `ipc: host` - Prevents Chromium out-of-memory crashes
-- Automatic restart on failure
+The server will be available at `http://localhost:8000`
 
-### Using Docker Directly
+### Using Docker
 
 ```bash
-# Build
-docker build -t screenshot-mcp-server .
+# Build the image
+docker build -t chrome-mcp .
 
-# Run with recommended flags
+# Run the container with critical flags
 docker run -d \
-  --init \
+  --name chrome-mcp \
   --ipc=host \
+  --init \
   -p 8000:8000 \
-  screenshot-mcp-server
+  -m 2048m \
+  chrome-mcp
 ```
 
-## ☁️ Coolify Deployment
+**Critical Docker Flags:**
+- `--ipc=host`: Prevents Chromium memory crashes (REQUIRED)
+- `--init`: Prevents zombie processes (REQUIRED)
+- `-m 2048m`: Minimum 2GB RAM for Playwright
 
-This project is optimized for deployment on [Coolify](https://coolify.io).
+## Available Tools 🛠️
 
-### Quick Deploy
+### 1. take_screenshot
 
-1. **Push to Git**: Ensure your repository is pushed to GitHub/GitLab
-2. **Create Resource**: In Coolify, create a new "Docker Compose" resource
-3. **Connect Repository**: Link your Git repository
-4. **Deploy**: Coolify will automatically build and deploy
+Capture a screenshot of any webpage.
 
-### Configuration
+**Parameters:**
+- `url` (string, required): The URL to capture
+- `full_page` (boolean, optional): Capture entire scrollable page (default: false)
+- `viewport_width` (int, optional): Browser width in pixels (default: 1920)
+- `viewport_height` (int, optional): Browser height in pixels (default: 1080)
+- `timeout` (int, optional): Page load timeout in ms (default: 30000)
 
-No additional environment variables are required for basic operation. The server runs on port 8000.
+**Returns:** Base64-encoded PNG image as data URL
 
-### Recommended Settings
-
-- **Resource Type**: Docker Compose
-- **Build Method**: Dockerfile
-- **Port**: 8000
-- **Health Check**: HTTP GET to `/` (if FastMCP supports it)
-
-## 📊 Technical Details
-
-### Architecture
-- **Runtime**: Python 3.11
-- **Framework**: FastMCP
-- **Browser**: Playwright Chromium
-- **Base Image**: `mcr.microsoft.com/playwright/python:v1.49.0-noble` (Ubuntu 24.04 LTS)
-
-### Docker Configuration
-
-Based on [official Playwright Docker documentation](https://playwright.dev/docs/docker):
-- Uses Microsoft's official Playwright Python image
-- Includes all system dependencies and browsers pre-installed
-- Configured with `--no-sandbox` and `--disable-dev-shm-usage` for container compatibility
-- `init: true` prevents zombie processes (PID 1 handling)
-- `ipc: host` prevents Chromium memory issues
-
-### Performance Characteristics
-
-**Screenshot Capture:**
-- Viewport only: ~2-5 seconds
-- Full page: ~5-15 seconds (depends on page length)
-- High-DPI (2x): ~1.5x slower than standard
-- JPEG vs PNG: JPEG is ~30-50% smaller but lossy
-
-**Content Extraction:**
-- HTML extraction: ~1-3 seconds
-- Text extraction: ~1-3 seconds
-- Element extraction: ~1-4 seconds (includes selector wait time)
-
-**Interactive Operations:**
-- Per action: ~0.5-2 seconds
-- Full workflow: Depends on action count and page responsiveness
-
-### Resource Usage
-
-- **Memory**: ~200-500 MB per browser instance
-- **CPU**: Moderate during page rendering
-- **Disk**: ~500 MB for Docker image
-
-## 🎯 MCP Configuration
-
-### For Claude Desktop
-
-Add to your `claude_desktop_config.json`:
-
+**Example:**
 ```json
 {
-  "mcpServers": {
-    "screenshot": {
-      "command": "python",
-      "args": ["/path/to/chrome-mcp/server.py"]
-    }
+  "name": "take_screenshot",
+  "arguments": {
+    "url": "https://www.producthunt.com",
+    "full_page": false,
+    "viewport_width": 1920,
+    "viewport_height": 1080
   }
 }
 ```
 
-### For Remote Deployment
+### 2. get_page_title
 
-```json
-{
-  "mcpServers": {
-    "screenshot": {
-      "url": "http://your-domain.com:8000",
-      "transport": "sse"
+Get the title of a webpage.
+
+**Parameters:**
+- `url` (string, required): The URL to fetch
+- `timeout` (int, optional): Page load timeout in ms (default: 30000)
+
+**Returns:** Page title as string
+
+### 3. health_check
+
+Check if the server and browser are running properly.
+
+**Parameters:** None
+
+**Returns:** Health status object with connection info
+
+## Testing 🧪
+
+### Local Test (No Docker Required)
+
+```bash
+# Install dependencies
+pip install playwright httpx
+playwright install chromium
+
+# Run test script
+python test_screenshot.py
+```
+
+This will:
+1. Test Playwright locally and save a screenshot to `screenshots/producthunt_test.png`
+2. Test the MCP server (if running) and save to `screenshots/producthunt_mcp.png`
+
+### Test with ProductHunt
+
+The test script automatically captures screenshots of ProductHunt.com to verify everything works correctly.
+
+## API Usage 📡
+
+### Using curl
+
+```bash
+# Health check
+curl -X POST http://localhost:8000/call-tool \
+  -H "Content-Type: application/json" \
+  -d '{"name": "health_check", "arguments": {}}'
+
+# Take screenshot
+curl -X POST http://localhost:8000/call-tool \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "take_screenshot",
+    "arguments": {
+      "url": "https://www.producthunt.com",
+      "viewport_width": 1920,
+      "viewport_height": 1080
     }
-  }
-}
+  }'
 ```
 
-## 💡 Usage Tips
-
-### Screenshot Quality
-- Use PNG for pixel-perfect captures (documentation, design review)
-- Use JPEG for faster transmission and smaller storage (preview, thumbnails)
-- Set `device_scale_factor: 2.0` for high-DPI displays and crisp text
-
-### Color Scheme Testing
-- Compare light/dark modes by taking two screenshots with different `color_scheme` values
-- Useful for testing theme implementations
-
-### Dynamic Content
-- Always use `wait_for_selector` for single-page applications
-- Increase `wait_timeout` for slow-loading pages
-- Consider using `interact_and_capture` to trigger lazy-loaded content
-
-### Error Handling
-- All tools return structured responses with error fields
-- Check `selector_matched` field when extracting elements
-- Review `errors` array from `interact_and_capture` for partial failures
-
-## 🔍 Troubleshooting
-
-### Build Failures
-- Ensure you're using the correct Playwright image version
-- Check Docker has enough resources (memory, disk space)
-- Review Coolify build logs for specific errors
-
-### Chromium Launch Errors
-- Uncomment `cap_add: SYS_ADMIN` in docker-compose.yml for development
-- Ensure `ipc: host` is set (prevents shared memory issues)
-- Check `/dev/shm` has sufficient space in container
-
-### Timeout Issues
-- Increase `wait_timeout` for slow networks or pages
-- Check URL is accessible from container (network configuration)
-- Verify CSS selectors are correct using browser DevTools
-
-### Selector Not Found
-- Test selectors in browser DevTools first
-- Wait for dynamic content with `wait_for_selector`
-- Check if content is in iframe (requires different handling)
-
-## 📚 Examples
-
-### Compare Light vs Dark Mode
+### Using Python (httpx)
 
 ```python
-# Capture both modes
-light = capture_screenshot(
-    url="https://example.com",
-    color_scheme="light"
-)
+import httpx
+import base64
+from pathlib import Path
 
-dark = capture_screenshot(
-    url="https://example.com",
-    color_scheme="dark"
-)
+async def capture_screenshot():
+    client = httpx.AsyncClient(timeout=60.0)
+    
+    response = await client.post(
+        "http://localhost:8000/call-tool",
+        json={
+            "name": "take_screenshot",
+            "arguments": {
+                "url": "https://www.producthunt.com"
+            }
+        }
+    )
+    
+    result = response.json()
+    data_url = result["result"]
+    
+    # Extract and save base64 data
+    base64_data = data_url.split(",")[1]
+    screenshot_bytes = base64.b64decode(base64_data)
+    Path("screenshot.png").write_bytes(screenshot_bytes)
+    
+    await client.aclose()
 ```
 
-### Extract Article Text
+## Deployment 🚢
 
-```python
-# Get article content
-article = get_element_content(
-    url="https://blog.example.com/post",
-    selector="article.post-content",
-    format="text"
-)
+### Coolify Deployment
 
-print(article["content"])
+1. Create a new service in Coolify
+2. Point to your Git repository
+3. Coolify will automatically detect `docker-compose.yml`
+4. Set any environment variables in Coolify UI
+5. Deploy!
+
+### Resource Requirements
+
+- **Minimum RAM**: 2GB (for Playwright + Chromium)
+- **Recommended RAM**: 4GB (for concurrent requests)
+- **CPU**: 1+ cores recommended
+- **Disk**: ~500MB for image + browsers
+
+## Architecture 🏗️
+
+```
+┌─────────────────────────────────────┐
+│   Docker Container                  │
+│                                     │
+│  ┌────────────────────────────┐   │
+│  │  FastMCP HTTP Server       │   │
+│  │  (Port 8000)               │   │
+│  └────────┬───────────────────┘   │
+│           │                         │
+│  ┌────────▼───────────────────┐   │
+│  │  Playwright Manager        │   │
+│  │  (Browser Pool)            │   │
+│  └────────┬───────────────────┘   │
+│           │                         │
+│  ┌────────▼───────────────────┐   │
+│  │  Chromium Browser          │   │
+│  │  (Headless)                │   │
+│  └────────────────────────────┘   │
+│                                     │
+└─────────────────────────────────────┘
 ```
 
-### Automated Form Submission
+### Key Design Decisions
 
-```python
-# Fill and submit form
-result = interact_and_capture(
-    url="https://example.com/contact",
-    actions=[
-        {"type": "type", "selector": "#name", "value": "John Doe"},
-        {"type": "type", "selector": "#email", "value": "john@example.com"},
-        {"type": "type", "selector": "#message", "value": "Hello!"},
-        {"type": "click", "selector": "button[type='submit']"},
-        {"type": "wait", "duration": 2000}
-    ]
-)
+1. **Official Playwright Image**: Uses `mcr.microsoft.com/playwright/python:v1.55.0-noble` with all system dependencies pre-installed
 
-if result["success"]:
-    print("Form submitted successfully!")
+2. **IPC Host Mode**: Critical for preventing Chromium memory issues in Docker
+
+3. **Shared Browser Instance**: One browser instance is reused across requests for efficiency
+
+4. **Async Architecture**: Fully async implementation using `asyncio` and Playwright's async API
+
+5. **Resource Limits**: Docker Compose enforces 2GB memory limit to prevent resource exhaustion
+
+## Troubleshooting 🔧
+
+### Browser Crashes or Memory Issues
+
+**Problem:** Chromium crashes with "Out of memory" or shared memory errors
+
+**Solution:** Ensure you're using `--ipc=host` flag (already in docker-compose.yml)
+
+### Screenshots Not Working
+
+**Problem:** Server runs but screenshots fail
+
+**Solution:** 
+1. Check if Chromium is installed: `docker exec chrome-mcp-server playwright install chromium`
+2. Verify browser can launch: Check logs with `docker-compose logs`
+3. Increase timeout for slow sites: Add `"timeout": 60000` to arguments
+
+### Port Already in Use
+
+**Problem:** Cannot bind to port 8000
+
+**Solution:** Change port mapping in docker-compose.yml:
+```yaml
+ports:
+  - "8080:8000"  # Use 8080 on host instead
 ```
 
-## 📖 API Reference
+### High Memory Usage
 
-For complete API documentation, see the tool docstrings in `server.py`. Each tool includes:
-- Detailed parameter descriptions
-- Return value schemas
-- Usage examples
-- Error conditions
+**Problem:** Container uses too much RAM
 
-## 🤝 Contributing
+**Solution:** 
+1. Increase memory limit in docker-compose.yml
+2. Reduce concurrent operations
+3. Monitor with: `docker stats chrome-mcp-server`
 
-Contributions are welcome! Please ensure:
-- Code follows existing patterns
-- New tools include comprehensive docstrings
-- Docker configuration remains compatible with Playwright requirements
+## Development 💻
 
-## 📄 License
+### Local Development (Without Docker)
 
-MIT License - feel free to use this in your projects!
+```bash
+# Create virtual environment
+python -m venv venv
+source venv/bin/activate  # or `venv\Scripts\activate` on Windows
 
-## 🆘 Support
+# Install dependencies
+pip install -r requirements.txt
+playwright install chromium
 
-For issues or questions:
-- Open an issue in the repository
-- Check [Playwright documentation](https://playwright.dev/docs/docker) for Docker-specific issues
-- Review [FastMCP documentation](https://github.com/jlowin/fastmcp) for MCP-related questions
+# Run server
+python server.py
+```
 
-## 🔗 Related Resources
+### Project Structure
 
-- [Playwright Docker Documentation](https://playwright.dev/docs/docker)
-- [FastMCP Framework](https://github.com/jlowin/fastmcp)
-- [Model Context Protocol](https://modelcontextprotocol.io)
-- [Coolify Platform](https://coolify.io)
+```
+chrome-mcp/
+├── Dockerfile                 # Production Docker image
+├── docker-compose.yml         # Docker Compose configuration
+├── requirements.txt           # Python dependencies
+├── server.py                  # FastMCP server implementation
+├── test_screenshot.py         # Test script
+├── .dockerignore             # Docker build exclusions
+├── .gitignore                # Git exclusions
+└── README.md                 # This file
+```
+
+## Production Considerations 🎯
+
+1. **Security**: Running as root is acceptable for trusted websites. For untrusted content, create a dedicated user.
+
+2. **Monitoring**: Implement health checks and log aggregation for production monitoring.
+
+3. **Rate Limiting**: Consider adding rate limiting for public-facing deployments.
+
+4. **Caching**: Implement response caching for frequently requested screenshots.
+
+5. **Scaling**: For high load, run multiple containers behind a load balancer.
+
+## Based on Research 📚
+
+This implementation follows production best practices identified from:
+- Official Microsoft Playwright documentation
+- Docker community best practices
+- FastMCP deployment guides
+- Real-world production deployments
+
+**Key Sources:**
+- Playwright Docker: https://playwright.dev/python/docs/docker
+- FastMCP HTTP Deployment: https://gofastmcp.com/deployment/http
+- Coolify Docker Compose: https://coolify.io/docs/builds/packs/docker-compose
+
+## License 📄
+
+MIT License - feel free to use in your projects!
+
+## Support 💬
+
+Having issues? Please check the troubleshooting section or open an issue on GitHub.
 
