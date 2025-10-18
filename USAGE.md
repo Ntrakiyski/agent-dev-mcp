@@ -434,7 +434,7 @@ Your MCP server is **publicly accessible**. Anyone with the URL can use it.
 {
   "mcpServers": {
     "chrome-screenshots": {
-      "url": "https://username:password@YOUR-COOLIFY-DOMAIN/mcp",
+      "url": "https://YOUR-USERNAME:YOUR-PASSWORD@YOUR-COOLIFY-DOMAIN/mcp",
       "transport": {
         "type": "http"
       }
@@ -442,6 +442,8 @@ Your MCP server is **publicly accessible**. Anyone with the URL can use it.
   }
 }
 ```
+
+**Note:** Replace `YOUR-USERNAME`, `YOUR-PASSWORD`, and `YOUR-COOLIFY-DOMAIN` with actual values.
 
 ### **Option 2: Limit Usage**
 
@@ -576,4 +578,3 @@ Your MCP server is:
 - ✅ Ready for Claude Desktop and custom clients
 
 **Just add the config and start taking screenshots!** 📸
-
