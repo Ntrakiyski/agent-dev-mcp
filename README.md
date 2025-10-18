@@ -28,6 +28,44 @@ No configuration needed. No manual setup. Just works. 🎉
 
 ---
 
+## 📋 Using the MCP Server
+
+Once deployed, configure your MCP client:
+
+### **Claude Desktop Configuration:**
+
+Add this to your Claude Desktop config file:
+
+**Config File Location:**
+- **macOS:** `~/Library/Application Support/Claude/claude_desktop_config.json`
+- **Windows:** `%APPDATA%\Claude\claude_desktop_config.json`
+- **Linux:** `~/.config/Claude/claude_desktop_config.json`
+
+**Configuration:**
+```json
+{
+  "mcpServers": {
+    "chrome-screenshots": {
+      "url": "https://YOUR-COOLIFY-DOMAIN/mcp",
+      "transport": {
+        "type": "http"
+      }
+    }
+  }
+}
+```
+
+**Important:**
+- ✅ Endpoint is `/mcp` (Streamable-HTTP transport)
+- ✅ Transport type is `"http"`
+- ✅ Replace `YOUR-COOLIFY-DOMAIN` with your actual Coolify URL
+
+**Then restart Claude Desktop and start taking screenshots!** 📸
+
+👉 **[See USAGE.md for complete usage guide, examples, and troubleshooting](USAGE.md)**
+
+---
+
 ## Quick Start 🚀
 
 ### Using Docker Compose (Recommended)
