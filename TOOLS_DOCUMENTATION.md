@@ -92,9 +92,102 @@ get_page_title("https://producthunt.com")
 
 ---
 
-### 3. `health_check`
+### 3. `ask_about_screenshot`
 
-**Description**: Check server health and configuration.
+**Description**: Analyze a screenshot using OpenRouter's vision-capable LLM models. Perfect for extracting information from screenshots, describing UI elements, reading text from images, or any vision-based tasks.
+
+**Input Parameters**:
+
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| `prompt` | string | ✅ Yes | - | Your question or instruction about the image (e.g., "What's in this image?", "Describe the UI layout") |
+| `image_url` | string | ✅ Yes | - | Public URL of the image to analyze (e.g., from ImgBB, or any accessible image URL) |
+| `model` | string | ❌ No | `"qwen/qwen-2.5-vl-72b-instruct"` | OpenRouter model ID. Other vision models: "google/gemini-2.0-flash-001", "anthropic/claude-3.5-sonnet", etc. |
+| `api_key` | string | ❌ No | env:`OPENROUTER_API_KEY` | OpenRouter API key (optional, uses OPENROUTER_API_KEY env var if not provided) |
+| `max_tokens` | integer | ❌ No | model default | Maximum tokens in response |
+| `temperature` | float | ❌ No | model default | Sampling temperature 0.0-1.0 for controlling randomness |
+
+**Output Schema**:
+
+```json
+{
+  "success": true,
+  "message": "Image analyzed successfully",
+  "response": "The image shows a modern web dashboard with...",
+  "model": "qwen/qwen-2.5-vl-72b-instruct",
+  "usage": {
+    "prompt_tokens": 150,
+    "completion_tokens": 200,
+    "total_tokens": 350
+  }
+}
+```
+
+**Examples**:
+
+```python
+# Basic screenshot analysis
+ask_about_screenshot(
+    "What's in this image?",
+    "https://i.ibb.co/xxxxx/screenshot.png"
+)
+
+# UI layout analysis with specific model
+ask_about_screenshot(
+    "Describe the UI layout and list all visible buttons",
+    "https://i.ibb.co/xxxxx/dashboard.png",
+    model="google/gemini-2.0-flash-001"
+)
+
+# Text extraction with low temperature
+ask_about_screenshot(
+    "Extract all visible text from this image",
+    "https://i.ibb.co/xxxxx/document.png",
+    temperature=0.2
+)
+
+# Combined workflow: Screenshot + Analysis
+screenshot = take_screenshot("https://example.com")
+analysis = ask_about_screenshot(
+    "Does this page have any visual bugs?",
+    screenshot['public_url']
+)
+```
+
+**Supported Vision Models**:
+
+| Model | ID | Best For |
+|-------|-----|----------|
+| **Qwen 2.5-VL** (default) | `qwen/qwen-2.5-vl-72b-instruct` | General vision tasks, fast & affordable |
+| **Gemini 2.0 Flash** | `google/gemini-2.0-flash-001` | Fast responses, good accuracy |
+| **Claude 3.5 Sonnet** | `anthropic/claude-3.5-sonnet` | Complex analysis, detailed responses |
+| **GPT-4 Vision** | `openai/gpt-4-vision-preview` | High accuracy, comprehensive |
+
+See [OpenRouter Models](https://openrouter.ai/models) for the complete list of vision-capable models.
+
+**Configuration**:
+
+```bash
+# .env file
+OPENROUTER_API_KEY=sk-or-v1-xxxxxxxxxxxxx
+```
+
+Get your API key from: https://openrouter.ai/keys
+
+**Use Cases**:
+
+1. **Screenshot QA**: Capture and analyze web pages for bugs
+2. **UI Documentation**: Generate descriptions of UI components
+3. **Error Diagnosis**: Analyze error screenshots and get solutions
+4. **Accessibility Audit**: Check for accessibility issues
+5. **Text Extraction**: Extract text from images or screenshots
+6. **Layout Analysis**: Understand page structure and design
+
+---
+
+### 4. `health_check`
+
+**Description**: Check server health and configuration status.
 
 **Input Parameters**: None
 
@@ -105,7 +198,20 @@ get_page_title("https://producthunt.com")
   "status": "healthy",
   "browser_connected": true,
   "imgbb_configured": true,
+  "openrouter_configured": true,
   "message": "Server is fully operational"
+}
+```
+
+Or when degraded:
+
+```json
+{
+  "status": "degraded",
+  "browser_connected": true,
+  "imgbb_configured": true,
+  "openrouter_configured": false,
+  "message": "Warnings: OpenRouter API key not configured"
 }
 ```
 
@@ -721,4 +827,3 @@ For issues or questions:
 ## License
 
 This project is licensed under the MIT License.
-
