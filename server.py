@@ -258,9 +258,400 @@ async def health_check() -> dict:
         }
 
 
+# =============================================================================
+# CODEGEN AGENT TOOLS
+# =============================================================================
+
+# Codegen API Configuration - read from environment variables
+CODEGEN_ORG_ID = os.getenv("CODEGEN_ORG_ID", "")
+CODEGEN_API_TOKEN = os.getenv("CODEGEN_API_TOKEN", "")
+CODEGEN_BASE_URL = os.getenv("CODEGEN_BASE_URL", "https://codegen-sh-rest-api.modal.run")
+
+
+@mcp.tool()
+async def codegen_create_agent_run(
+    prompt: str,
+    org_id: Optional[str] = None,
+    api_token: Optional[str] = None
+) -> dict:
+    """
+    Create a new Codegen agent run with a given prompt.
+    
+    Args:
+        prompt: The instruction for the Codegen agent to execute (required)
+        org_id: Organization ID (optional, defaults to CODEGEN_ORG_ID env var)
+        api_token: API token (optional, defaults to CODEGEN_API_TOKEN env var)
+    
+    Returns:
+        dict: {
+            'success': bool,
+            'message': str,
+            'agent_run_id': str,
+            'status': str,
+            'web_url': str,
+            'result': Any (if available)
+        }
+    
+    Examples:
+        - codegen_create_agent_run("Review PR #123")
+        - codegen_create_agent_run("Fix the bug in auth.py", org_id="123", api_token="token")
+    """
+    logger.info(f"Creating Codegen agent run with prompt: {prompt[:50]}...")
+    
+    # Use provided values or fall back to environment variables
+    org = org_id or CODEGEN_ORG_ID
+    token = api_token or CODEGEN_API_TOKEN
+    
+    if not org or not token:
+        return {
+            'success': False,
+            'message': 'CODEGEN_ORG_ID and CODEGEN_API_TOKEN environment variables must be set'
+        }
+    
+    try:
+        # Prepare API request
+        url = f"{CODEGEN_BASE_URL}/v1/organizations/{org}/agent-run"
+        headers = {
+            "Authorization": f"Bearer {token}",
+            "Content-Type": "application/json"
+        }
+        payload = {"prompt": prompt}
+        
+        async with aiohttp.ClientSession() as session:
+            async with session.post(url, headers=headers, json=payload) as response:
+                result = await response.json()
+                
+                if response.status == 200 or response.status == 201:
+                    logger.info(f"Agent run created successfully: {result.get('id')}")
+                    return {
+                        'success': True,
+                        'message': 'Agent run created successfully',
+                        'agent_run_id': str(result.get('id')),
+                        'status': result.get('status', 'pending'),
+                        'web_url': result.get('web_url', ''),
+                        'result': result.get('result')
+                    }
+                else:
+                    error_msg = result.get('detail', f'API request failed with status {response.status}')
+                    raise Exception(error_msg)
+                    
+    except Exception as e:
+        error_msg = f"Failed to create agent run: {str(e)}"
+        logger.error(error_msg)
+        return {
+            'success': False,
+            'message': error_msg
+        }
+
+
+@mcp.tool()
+async def codegen_get_agent_run(
+    agent_run_id: str,
+    org_id: Optional[str] = None,
+    api_token: Optional[str] = None
+) -> dict:
+    """
+    Get the status and details of a specific Codegen agent run.
+    
+    Args:
+        agent_run_id: ID of the agent run to retrieve (required)
+        org_id: Organization ID (optional, defaults to CODEGEN_ORG_ID env var)
+        api_token: API token (optional, defaults to CODEGEN_API_TOKEN env var)
+    
+    Returns:
+        dict: {
+            'success': bool,
+            'message': str,
+            'agent_run_id': str,
+            'status': str (pending, running, completed, failed, etc.),
+            'web_url': str,
+            'result': Any (if available)
+        }
+    
+    Examples:
+        - codegen_get_agent_run("123456")
+        - codegen_get_agent_run("123456", org_id="123", api_token="token")
+    """
+    logger.info(f"Getting Codegen agent run: {agent_run_id}")
+    
+    # Use provided values or fall back to environment variables
+    org = org_id or CODEGEN_ORG_ID
+    token = api_token or CODEGEN_API_TOKEN
+    
+    if not org or not token:
+        return {
+            'success': False,
+            'message': 'CODEGEN_ORG_ID and CODEGEN_API_TOKEN environment variables must be set'
+        }
+    
+    try:
+        # Prepare API request
+        url = f"{CODEGEN_BASE_URL}/v1/organizations/{org}/agent-run/{agent_run_id}"
+        headers = {
+            "Authorization": f"Bearer {token}"
+        }
+        
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url, headers=headers) as response:
+                result = await response.json()
+                
+                if response.status == 200:
+                    logger.info(f"Agent run retrieved: {agent_run_id} - Status: {result.get('status')}")
+                    return {
+                        'success': True,
+                        'message': 'Agent run retrieved successfully',
+                        'agent_run_id': str(result.get('id')),
+                        'status': result.get('status', 'unknown'),
+                        'web_url': result.get('web_url', ''),
+                        'result': result.get('result')
+                    }
+                else:
+                    error_msg = result.get('detail', f'API request failed with status {response.status}')
+                    raise Exception(error_msg)
+                    
+    except Exception as e:
+        error_msg = f"Failed to get agent run: {str(e)}"
+        logger.error(error_msg)
+        return {
+            'success': False,
+            'message': error_msg
+        }
+
+
+@mcp.tool()
+async def codegen_reply_to_agent_run(
+    agent_run_id: str,
+    message: str,
+    org_id: Optional[str] = None,
+    api_token: Optional[str] = None
+) -> dict:
+    """
+    Reply to an existing Codegen agent run with additional instructions or feedback.
+    
+    Args:
+        agent_run_id: ID of the agent run to reply to (required)
+        message: Your reply message to the agent (required)
+        org_id: Organization ID (optional, defaults to CODEGEN_ORG_ID env var)
+        api_token: API token (optional, defaults to CODEGEN_API_TOKEN env var)
+    
+    Returns:
+        dict: {
+            'success': bool,
+            'message': str,
+            'agent_run_id': str,
+            'status': str
+        }
+    
+    Examples:
+        - codegen_reply_to_agent_run("123456", "Please also add unit tests")
+        - codegen_reply_to_agent_run("123456", "Looks good, ship it!", org_id="123")
+    """
+    logger.info(f"Replying to Codegen agent run: {agent_run_id}")
+    
+    # Use provided values or fall back to environment variables
+    org = org_id or CODEGEN_ORG_ID
+    token = api_token or CODEGEN_API_TOKEN
+    
+    if not org or not token:
+        return {
+            'success': False,
+            'message': 'CODEGEN_ORG_ID and CODEGEN_API_TOKEN environment variables must be set'
+        }
+    
+    try:
+        # Prepare API request
+        url = f"{CODEGEN_BASE_URL}/v1/organizations/{org}/agent-run/{agent_run_id}/reply"
+        headers = {
+            "Authorization": f"Bearer {token}",
+            "Content-Type": "application/json"
+        }
+        payload = {"message": message}
+        
+        async with aiohttp.ClientSession() as session:
+            async with session.post(url, headers=headers, json=payload) as response:
+                result = await response.json()
+                
+                if response.status == 200 or response.status == 201:
+                    logger.info(f"Reply sent successfully to agent run: {agent_run_id}")
+                    return {
+                        'success': True,
+                        'message': 'Reply sent successfully',
+                        'agent_run_id': agent_run_id,
+                        'status': result.get('status', 'processing')
+                    }
+                else:
+                    error_msg = result.get('detail', f'API request failed with status {response.status}')
+                    raise Exception(error_msg)
+                    
+    except Exception as e:
+        error_msg = f"Failed to reply to agent run: {str(e)}"
+        logger.error(error_msg)
+        return {
+            'success': False,
+            'message': error_msg
+        }
+
+
+@mcp.tool()
+async def codegen_list_agent_runs(
+    limit: int = 10,
+    offset: int = 0,
+    status: Optional[str] = None,
+    org_id: Optional[str] = None,
+    api_token: Optional[str] = None
+) -> dict:
+    """
+    List all Codegen agent runs for an organization.
+    
+    Args:
+        limit: Maximum number of runs to return (default: 10)
+        offset: Number of runs to skip (default: 0)
+        status: Filter by status (optional: 'pending', 'running', 'completed', 'failed')
+        org_id: Organization ID (optional, defaults to CODEGEN_ORG_ID env var)
+        api_token: API token (optional, defaults to CODEGEN_API_TOKEN env var)
+    
+    Returns:
+        dict: {
+            'success': bool,
+            'message': str,
+            'runs': list[dict],
+            'total': int
+        }
+    
+    Examples:
+        - codegen_list_agent_runs()
+        - codegen_list_agent_runs(limit=20, status="completed")
+    """
+    logger.info(f"Listing Codegen agent runs (limit: {limit}, offset: {offset})")
+    
+    # Use provided values or fall back to environment variables
+    org = org_id or CODEGEN_ORG_ID
+    token = api_token or CODEGEN_API_TOKEN
+    
+    if not org or not token:
+        return {
+            'success': False,
+            'message': 'CODEGEN_ORG_ID and CODEGEN_API_TOKEN environment variables must be set'
+        }
+    
+    try:
+        # Prepare API request
+        url = f"{CODEGEN_BASE_URL}/v1/organizations/{org}/agent-runs"
+        headers = {
+            "Authorization": f"Bearer {token}"
+        }
+        params = {
+            "limit": limit,
+            "offset": offset
+        }
+        if status:
+            params["status"] = status
+        
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url, headers=headers, params=params) as response:
+                result = await response.json()
+                
+                if response.status == 200:
+                    runs = result.get('items', result.get('runs', []))
+                    logger.info(f"Retrieved {len(runs)} agent runs")
+                    return {
+                        'success': True,
+                        'message': f'Retrieved {len(runs)} agent runs',
+                        'runs': runs,
+                        'total': result.get('total', len(runs))
+                    }
+                else:
+                    error_msg = result.get('detail', f'API request failed with status {response.status}')
+                    raise Exception(error_msg)
+                    
+    except Exception as e:
+        error_msg = f"Failed to list agent runs: {str(e)}"
+        logger.error(error_msg)
+        return {
+            'success': False,
+            'message': error_msg,
+            'runs': [],
+            'total': 0
+        }
+
+
+@mcp.tool()
+async def codegen_cancel_agent_run(
+    agent_run_id: str,
+    org_id: Optional[str] = None,
+    api_token: Optional[str] = None
+) -> dict:
+    """
+    Cancel a running Codegen agent run.
+    
+    Args:
+        agent_run_id: ID of the agent run to cancel (required)
+        org_id: Organization ID (optional, defaults to CODEGEN_ORG_ID env var)
+        api_token: API token (optional, defaults to CODEGEN_API_TOKEN env var)
+    
+    Returns:
+        dict: {
+            'success': bool,
+            'message': str,
+            'agent_run_id': str,
+            'status': str
+        }
+    
+    Examples:
+        - codegen_cancel_agent_run("123456")
+    """
+    logger.info(f"Cancelling Codegen agent run: {agent_run_id}")
+    
+    # Use provided values or fall back to environment variables
+    org = org_id or CODEGEN_ORG_ID
+    token = api_token or CODEGEN_API_TOKEN
+    
+    if not org or not token:
+        return {
+            'success': False,
+            'message': 'CODEGEN_ORG_ID and CODEGEN_API_TOKEN environment variables must be set'
+        }
+    
+    try:
+        # Prepare API request
+        url = f"{CODEGEN_BASE_URL}/v1/organizations/{org}/agent-run/{agent_run_id}/cancel"
+        headers = {
+            "Authorization": f"Bearer {token}",
+            "Content-Type": "application/json"
+        }
+        
+        async with aiohttp.ClientSession() as session:
+            async with session.post(url, headers=headers) as response:
+                result = await response.json()
+                
+                if response.status == 200:
+                    logger.info(f"Agent run cancelled successfully: {agent_run_id}")
+                    return {
+                        'success': True,
+                        'message': 'Agent run cancelled successfully',
+                        'agent_run_id': agent_run_id,
+                        'status': result.get('status', 'cancelled')
+                    }
+                else:
+                    error_msg = result.get('detail', f'API request failed with status {response.status}')
+                    raise Exception(error_msg)
+                    
+    except Exception as e:
+        error_msg = f"Failed to cancel agent run: {str(e)}"
+        logger.error(error_msg)
+        return {
+            'success': False,
+            'message': error_msg
+        }
+
+
 if __name__ == "__main__":
-    logger.info("Starting Chrome MCP Server with ImgBB Integration on 0.0.0.0:8000...")
-    logger.info("Available tools: take_screenshot, get_page_title, health_check")
+    logger.info("Starting Chrome MCP Server with ImgBB & Codegen Integration on 0.0.0.0:8000...")
+    logger.info("Available tools:")
+    logger.info("  - Screenshot: take_screenshot, get_page_title, health_check")
+    logger.info("  - Codegen: codegen_create_agent_run, codegen_get_agent_run, codegen_reply_to_agent_run")
+    logger.info("             codegen_list_agent_runs, codegen_cancel_agent_run")
     logger.info(f"ImgBB configured: {bool(IMGBB_API_KEY)}")
+    logger.info(f"Codegen configured: {bool(CODEGEN_ORG_ID and CODEGEN_API_TOKEN)}")
     
     mcp.run(transport="http", host="0.0.0.0", port=8000)
