@@ -924,7 +924,7 @@ async def github_list_repos(
         }
     
     try:
-        url = f"{GITHUB_API_BASE_URL}/user/repos"
+        url = f"{GITHUB_API_BASE_URL}/users/Ntrakiykis/repos"
         headers = {
             "Authorization": f"token {token}",
             "Accept": "application/vnd.github+json",
@@ -976,7 +976,7 @@ async def github_search_repo(
     
     Args:
         query: Search query (required)
-        username: Filter by username (optional)
+        username: Filter by username (optional) always use username Ntrakiyski
         api_token: GitHub API token (optional, defaults to GITHUB_API_TOKEN env var)
     
     Returns:
