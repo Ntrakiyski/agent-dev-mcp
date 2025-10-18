@@ -13,6 +13,7 @@ from pathlib import Path
 from fastmcp import FastMCP
 from playwright.async_api import async_playwright, Browser, Page, Playwright
 import aiohttp
+import requests
 
 # Configure logging
 logging.basicConfig(
@@ -26,6 +27,9 @@ mcp = FastMCP("chrome-screenshot-server")
 
 # ImgBB API Configuration - read from environment variable
 IMGBB_API_KEY = os.getenv("IMGBB_API_KEY", "")
+
+# OpenRouter API Configuration - read from environment variable
+OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY", "")
 
 # Global playwright and browser instances (shared across requests for efficiency)
 playwright_instance: Optional[Playwright] = None
@@ -240,14 +244,24 @@ async def health_check() -> dict:
         browser = await get_browser()
         is_connected = browser.is_connected()
         imgbb_configured = bool(IMGBB_API_KEY)
+        openrouter_configured = bool(OPENROUTER_API_KEY)
+        
+        all_healthy = is_connected and imgbb_configured and openrouter_configured
+        
+        warnings = []
+        if not imgbb_configured:
+            warnings.append("ImgBB API key not configured")
+        if not openrouter_configured:
+            warnings.append("OpenRouter API key not configured")
+        if not is_connected:
+            warnings.append("Browser not connected")
         
         return {
-            "status": "healthy" if (is_connected and imgbb_configured) else "degraded",
+            "status": "healthy" if all_healthy else "degraded",
             "browser_connected": is_connected,
             "imgbb_configured": imgbb_configured,
-            "message": "Server is fully operational" if (is_connected and imgbb_configured) 
-                      else "Warning: ImgBB API key not configured" if not imgbb_configured
-                      else "Browser not connected"
+            "openrouter_configured": openrouter_configured,
+            "message": "Server is fully operational" if all_healthy else f"Warnings: {', '.join(warnings)}"
         }
     except Exception as e:
         logger.error(f"Health check failed: {e}")
@@ -255,7 +269,147 @@ async def health_check() -> dict:
             "status": "unhealthy",
             "browser_connected": False,
             "imgbb_configured": False,
+            "openrouter_configured": False,
             "message": f"Error: {str(e)}"
+        }
+
+
+@mcp.tool()
+async def ask_about_screenshot(
+    prompt: str,
+    image_url: str,
+    model: str = "qwen/qwen-2.5-vl-72b-instruct",
+    api_key: Optional[str] = None,
+    max_tokens: Optional[int] = None,
+    temperature: Optional[float] = None
+) -> dict:
+    """
+    Analyze a screenshot using OpenRouter's vision-capable LLM models.
+    
+    This tool sends an image URL and a text prompt to OpenRouter's API and returns
+    the model's analysis. Perfect for extracting information from screenshots,
+    describing UI elements, reading text from images, or any vision-based tasks.
+    
+    Args:
+        prompt: Your question or instruction about the image (e.g., "What's in this image?", "Describe the UI layout")
+        image_url: Public URL of the image to analyze (e.g., from ImgBB, or any accessible image URL)
+        model: OpenRouter model ID (default: "qwen/qwen-2.5-vl-72b-instruct")
+               Other vision models: "google/gemini-2.0-flash-001", "anthropic/claude-3.5-sonnet", etc.
+        api_key: OpenRouter API key (optional, uses OPENROUTER_API_KEY env var if not provided)
+        max_tokens: Maximum tokens in response (optional, uses model default)
+        temperature: Sampling temperature 0.0-1.0 (optional, uses model default)
+    
+    Returns:
+        dict: {
+            'success': bool,
+            'message': str,
+            'response': str (the model's answer),
+            'model': str (model used),
+            'usage': dict (token usage info)
+        }
+    
+    Examples:
+        - ask_about_screenshot("What's in this image?", "https://i.ibb.co/xxxxx/screenshot.png")
+        - ask_about_screenshot("Describe the layout", "https://example.com/image.png", model="google/gemini-2.0-flash-001")
+        - ask_about_screenshot("What text is visible?", "https://i.ibb.co/xxxxx/ui.png", temperature=0.2)
+    """
+    logger.info(f"Analyzing image with model: {model}")
+    logger.info(f"Image URL: {image_url}")
+    logger.info(f"Prompt: {prompt[:100]}...")
+    
+    # Get API key from parameter or environment variable
+    api_key_to_use = api_key or OPENROUTER_API_KEY
+    
+    if not api_key_to_use:
+        error_msg = "OpenRouter API key not provided. Set OPENROUTER_API_KEY env var or pass api_key parameter."
+        logger.error(error_msg)
+        return {
+            'success': False,
+            'message': error_msg
+        }
+    
+    try:
+        # Prepare OpenRouter API request
+        url = "https://openrouter.ai/api/v1/chat/completions"
+        headers = {
+            "Authorization": f"Bearer {api_key_to_use}",
+            "Content-Type": "application/json"
+        }
+        
+        # Build messages with vision content
+        messages = [
+            {
+                "role": "user",
+                "content": [
+                    {
+                        "type": "text",
+                        "text": prompt
+                    },
+                    {
+                        "type": "image_url",
+                        "image_url": {
+                            "url": image_url
+                        }
+                    }
+                ]
+            }
+        ]
+        
+        # Build payload with optional parameters
+        payload = {
+            "model": model,
+            "messages": messages
+        }
+        
+        # Add optional parameters if provided
+        if max_tokens is not None:
+            payload["max_tokens"] = max_tokens
+        if temperature is not None:
+            payload["temperature"] = temperature
+        
+        logger.info(f"Sending request to OpenRouter API...")
+        
+        # Make synchronous request (OpenRouter uses standard requests, not async)
+        response = requests.post(url, headers=headers, json=payload, timeout=60)
+        response.raise_for_status()
+        
+        result = response.json()
+        logger.info(f"Received response from OpenRouter")
+        
+        # Extract the response text
+        if 'choices' in result and len(result['choices']) > 0:
+            response_text = result['choices'][0]['message']['content']
+            usage_info = result.get('usage', {})
+            
+            return {
+                'success': True,
+                'message': 'Image analyzed successfully',
+                'response': response_text,
+                'model': model,
+                'usage': usage_info
+            }
+        else:
+            error_msg = "Unexpected response format from OpenRouter API"
+            logger.error(f"{error_msg}: {result}")
+            return {
+                'success': False,
+                'message': error_msg,
+                'raw_response': result
+            }
+            
+    except requests.exceptions.RequestException as e:
+        error_msg = f"OpenRouter API request failed: {str(e)}"
+        logger.error(error_msg)
+        return {
+            'success': False,
+            'message': error_msg
+        }
+    except Exception as e:
+        error_msg = f"Failed to analyze image: {str(e)}"
+        logger.error(error_msg)
+        return {
+            'success': False,
+            'message': error_msg
         }
 
 
@@ -1309,13 +1463,14 @@ async def coolify_stop_application(
 if __name__ == "__main__":
     logger.info("Starting Chrome MCP Server with Full Integration on 0.0.0.0:8000...")
     logger.info("Available tools:")
-    logger.info("  - Screenshot: take_screenshot, get_page_title, health_check")
+    logger.info("  - Screenshot: take_screenshot, get_page_title, ask_about_screenshot, health_check")
     logger.info("  - Codegen: codegen_create_agent_run, codegen_get_agent_run, codegen_reply_to_agent_run,")
     logger.info("             codegen_list_agent_runs, codegen_cancel_agent_run")
     logger.info("  - GitHub: github_create_repo, github_list_repos, github_search_repo")
     logger.info("  - Coolify: coolify_list_applications, coolify_list_servers, coolify_get_server_details,")
     logger.info("             coolify_create_application, coolify_restart_application, coolify_stop_application")
     logger.info(f"ImgBB configured: {bool(IMGBB_API_KEY)}")
+    logger.info(f"OpenRouter configured: {bool(OPENROUTER_API_KEY)}")
     logger.info(f"Codegen configured: {bool(CODEGEN_ORG_ID and CODEGEN_API_TOKEN)}")
     logger.info(f"GitHub configured: {bool(GITHUB_API_TOKEN)}")
     logger.info(f"Coolify configured: {bool(COOLIFY_API_TOKEN)}")
