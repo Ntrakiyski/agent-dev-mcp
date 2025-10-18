@@ -188,8 +188,7 @@ async def take_screenshot(
             return {
                 'success': True,
                 'message': 'Screenshot uploaded successfully',
-                'public_url': public_url,
-                'screenshot_base64': f"data:image/png;base64,{screenshot_b64}"
+                'public_url': public_url
             }
             
         finally:
