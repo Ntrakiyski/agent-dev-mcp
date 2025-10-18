@@ -121,7 +121,7 @@ async def take_screenshot(
             'success': bool,
             'message': str,
             'public_url': str (if upload_to_cloud=True),
-            'screenshot_base64': str (if upload_to_cloud=False)
+            'screenshot_base64': str (always included)
         }
     
     Examples:
@@ -184,7 +184,8 @@ async def take_screenshot(
             return {
                 'success': True,
                 'message': 'Screenshot uploaded successfully',
-                'public_url': public_url
+                'public_url': public_url,
+                'screenshot_base64': f"data:image/png;base64,{screenshot_b64}"
             }
             
         finally:
