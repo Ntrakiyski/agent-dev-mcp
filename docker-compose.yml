@@ -3,10 +3,9 @@ version: "3.8"
 services:
   chrome-mcp:
     build: .
-    container_name: chrome-mcp-server
-    ports:
-      - "8000:8000"
     restart: unless-stopped
+    expose:
+      - "8000"
     
     # CRITICAL: IPC host mode prevents Chromium memory crashes
     # Without this, Chrome will fail with shared memory errors
