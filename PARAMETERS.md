@@ -14,7 +14,7 @@ Complete guide to using the Chrome MCP Server screenshot parameters.
 | `viewport_width` | integer | 1920 | Browser viewport width in pixels |
 | `viewport_height` | integer | 1080 | Browser viewport height in pixels |
 | `delay` | integer | 0 | Additional delay in milliseconds after page loads before taking screenshot |
-| `full_page` | boolean | false | If true, captures entire scrollable page. If false, captures only viewport |
+| `full_page` | boolean | **true** | If true, captures entire scrollable page. If false, captures only viewport |
 | `timeout` | integer | 30000 | Page load timeout in milliseconds |
 
 ---
@@ -101,9 +101,10 @@ Total = Page Load Time + Network Idle (max 5s) + Custom Delay
 
 ## 🚀 Usage Examples
 
-### Basic Screenshot
+### Basic Screenshot (Full Page by Default)
 ```python
 take_screenshot("https://example.com")
+# Captures entire scrollable page by default
 ```
 
 ### Mobile Screenshot
@@ -125,11 +126,11 @@ take_screenshot(
 )
 ```
 
-### Full Page Screenshot
+### Viewport Only Screenshot
 ```python
 take_screenshot(
     url="https://example.com",
-    full_page=True  # Capture entire scrollable page
+    full_page=False  # Capture only visible viewport (not full page)
 )
 ```
 
@@ -140,8 +141,8 @@ take_screenshot(
     viewport_width=1280,
     viewport_height=720,
     delay=3000,
-    full_page=False,
-    timeout=60000  # 60 second timeout
+    full_page=True,  # Full page (default, but shown for clarity)
+    timeout=60000    # 60 second timeout
 )
 ```
 
@@ -190,18 +191,20 @@ All screenshots are saved to `./screenshots/` folder.
 
 ### Full Page vs Viewport
 
-- **Viewport only (`full_page=false`):**
-  - ✅ Faster
-  - ✅ Smaller file size
-  - ✅ Shows "above the fold" content
-  - ❌ Misses content below the fold
+- **Full page (`full_page=true`) - DEFAULT:**
+  - ✅ Captures entire scrollable page
+  - ✅ Perfect for documentation
+  - ✅ Sees all content, including below the fold
+  - ✅ **Now the default setting!**
+  - ⚠️ Slightly slower for very long pages
+  - ⚠️ Larger file size for long pages
 
-- **Full page (`full_page=true`):**
-  - ✅ Captures entire page
-  - ✅ Great for documentation
-  - ❌ Slower
-  - ❌ Larger file size
-  - ❌ Can be very large for long pages
+- **Viewport only (`full_page=false`):**
+  - ✅ Faster for very long pages
+  - ✅ Smaller file size
+  - ✅ Shows only "above the fold" content
+  - ❌ Misses content below the fold
+  - ❌ Less useful for documentation
 
 ---
 
@@ -264,4 +267,3 @@ The Chrome MCP Server now supports:
 ✅ **Full flexibility** - Combine parameters as needed
 
 Happy screenshotting! 📸
-

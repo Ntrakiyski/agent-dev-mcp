@@ -52,7 +52,7 @@ async def get_browser() -> Browser:
 @mcp.tool()
 async def take_screenshot(
     url: str,
-    full_page: bool = False,
+    full_page: bool = True,
     viewport_width: int = 1920,
     viewport_height: int = 1080,
     timeout: int = 30000,
@@ -63,7 +63,7 @@ async def take_screenshot(
     
     Args:
         url: The URL to capture (e.g., "https://producthunt.com")
-        full_page: If True, captures the entire scrollable page. If False, captures only viewport
+        full_page: If True, captures the entire scrollable page. If False, captures only viewport (default: True)
         viewport_width: Browser viewport width in pixels (default: 1920)
         viewport_height: Browser viewport height in pixels (default: 1080)
         timeout: Page load timeout in milliseconds (default: 30000)
@@ -71,15 +71,16 @@ async def take_screenshot(
                Useful for waiting for animations, lazy-loaded content, etc.
     
     Returns:
-        Base64-encoded PNG screenshot
+        Base64-encoded PNG screenshot of the entire page
     
     Examples:
-        - take_screenshot("https://producthunt.com")
-        - take_screenshot("https://example.com", full_page=True)
+        - take_screenshot("https://producthunt.com")  # Full page by default
+        - take_screenshot("https://example.com", full_page=False)  # Only viewport
         - take_screenshot("https://example.com", viewport_width=1280, viewport_height=720)
         - take_screenshot("https://example.com", delay=2000)  # Wait 2 seconds after load
     """
-    logger.info(f"Taking screenshot of {url} (viewport: {viewport_width}x{viewport_height}, delay: {delay}ms)")
+    page_type = "full page" if full_page else "viewport only"
+    logger.info(f"Taking screenshot of {url} ({page_type}, viewport: {viewport_width}x{viewport_height}, delay: {delay}ms)")
     
     try:
         # Get browser instance
