@@ -792,6 +792,117 @@ coolify_stop_application("app-uuid-here")
 
 ---
 
+### 7. `get_coolify_domain_and_envs`
+
+**Description**: Get domain and all environment variables for a Coolify application in a single call.
+
+This tool retrieves both the application's domain/FQDN and all environment variables, making it convenient to get complete deployment configuration information without making multiple API calls.
+
+**Input Parameters**:
+
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| `app_uuid` | string | ✅ Yes | - | Application UUID |
+| `api_token` | string | ❌ No | env:`COOLIFY_API_TOKEN` | Coolify API token |
+
+**Output Schema**:
+
+```json
+{
+  "success": true,
+  "message": "Successfully retrieved domain and environment variables",
+  "application_uuid": "app-uuid",
+  "domain": "myapp.example.com",
+  "fqdn": "myapp.example.com",
+  "environment_variables": [
+    {
+      "id": 1,
+      "uuid": "env-uuid",
+      "key": "DATABASE_URL",
+      "value": "postgres://***",
+      "real_value": "postgres://user:pass@host:5432/db",
+      "is_literal": true,
+      "is_multiline": false,
+      "is_preview": false,
+      "is_runtime": true,
+      "is_buildtime": false,
+      "is_shared": false,
+      "is_shown_once": false,
+      "version": "1.0",
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z"
+    },
+    {
+      "id": 2,
+      "uuid": "env-uuid-2",
+      "key": "NODE_ENV",
+      "value": "production",
+      "real_value": "production",
+      "is_literal": true,
+      "is_multiline": false,
+      "is_preview": false,
+      "is_runtime": true,
+      "is_buildtime": true,
+      "is_shared": false,
+      "is_shown_once": false,
+      "version": "1.0",
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z"
+    }
+  ]
+}
+```
+
+**Environment Variable Fields**:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | integer | Database ID of the environment variable |
+| `uuid` | string | Unique identifier for the environment variable |
+| `key` | string | Environment variable name |
+| `value` | string | Masked/displayed value (sensitive values may be masked) |
+| `real_value` | string | Actual unmasked value |
+| `is_literal` | boolean | Whether the value is literal or computed |
+| `is_multiline` | boolean | Whether the value spans multiple lines |
+| `is_preview` | boolean | Whether this is a preview environment variable |
+| `is_runtime` | boolean | Whether this variable is available at runtime |
+| `is_buildtime` | boolean | Whether this variable is available at build time |
+| `is_shared` | boolean | Whether this variable is shared across environments |
+| `is_shown_once` | boolean | Whether this variable is shown only once for security |
+| `version` | string | Version of the environment variable |
+| `created_at` | string | ISO 8601 timestamp of creation |
+| `updated_at` | string | ISO 8601 timestamp of last update |
+
+**Examples**:
+
+```python
+# Get domain and env vars for an application
+result = get_coolify_domain_and_envs("app-uuid-here")
+print(f"Domain: {result['domain']}")
+print(f"Found {len(result['environment_variables'])} environment variables")
+
+# Access specific environment variables
+for env_var in result['environment_variables']:
+    if env_var['key'] == 'DATABASE_URL':
+        print(f"Database URL: {env_var['real_value']}")
+
+# Use custom API token
+result = get_coolify_domain_and_envs(
+    app_uuid="app-uuid-here",
+    api_token="custom-token"
+)
+```
+
+**Use Cases**:
+
+- **Deployment Configuration Audit**: Get all configuration in one call for documentation
+- **Environment Setup**: Retrieve all environment variables to replicate configuration
+- **Domain Verification**: Confirm the correct domain is assigned to an application
+- **Configuration Debugging**: Check all environment variables and their values at once
+- **Migration Planning**: Export complete configuration before migrating applications
+
+---
+
 ## Environment Variables
 
 All tools support environment variable configuration. Create a `.env` file with:
