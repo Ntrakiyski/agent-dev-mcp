@@ -303,6 +303,34 @@ Stop a Coolify application.
 
 **Returns:** Stop confirmation
 
+#### `get_coolify_domain_and_envs`
+Get domain and all environment variables for a Coolify application.
+
+This convenient tool retrieves both the application's domain/FQDN and all environment variables in a single API call.
+
+**Parameters:**
+- `app_uuid` (string, required): Application UUID
+- `api_token` (string, optional): Coolify API token (defaults to `COOLIFY_API_TOKEN`)
+
+**Returns:** 
+```json
+{
+  "success": true,
+  "domain": "myapp.example.com",
+  "fqdn": "myapp.example.com",
+  "environment_variables": [
+    {
+      "key": "DATABASE_URL",
+      "value": "postgres://***",
+      "real_value": "postgres://user:pass@host/db",
+      "is_runtime": true,
+      "is_buildtime": false,
+      ...
+    }
+  ]
+}
+```
+
 ## Environment Variables 🔐
 
 Configure the server using these environment variables:

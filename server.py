@@ -1486,6 +1486,106 @@ async def coolify_stop_application(
         }
 
 
+@mcp.tool()
+async def get_coolify_domain_and_envs(
+    app_uuid: str,
+    api_token: Optional[str] = None
+) -> dict:
+    """
+    Get domain and all environment variables for a Coolify application.
+    
+    This tool retrieves both the application's domain/FQDN and all environment 
+    variables in a single call, making it convenient to get complete deployment 
+    configuration information.
+    
+    Args:
+        app_uuid: Application UUID (required)
+        api_token: Coolify API token (optional, defaults to COOLIFY_API_TOKEN env var)
+    
+    Returns:
+        dict: {
+            'success': bool,
+            'message': str,
+            'application_uuid': str,
+            'domain': str,
+            'fqdn': str,
+            'environment_variables': list[dict] with fields:
+                - id: int
+                - uuid: str
+                - key: str
+                - value: str (masked sensitive values)
+                - real_value: str (actual value)
+                - is_literal: bool
+                - is_multiline: bool
+                - is_preview: bool
+                - is_runtime: bool
+                - is_buildtime: bool
+                - is_shared: bool
+                - is_shown_once: bool
+                - version: str
+                - created_at: str
+                - updated_at: str
+        }
+    
+    Examples:
+        - get_coolify_domain_and_envs("app-uuid-here")
+        - get_coolify_domain_and_envs("app-uuid-here", api_token="custom-token")
+    """
+    logger.info(f"Getting domain and environment variables for Coolify application: {app_uuid}")
+    
+    token = api_token or COOLIFY_API_TOKEN
+    if not token:
+        return {
+            'success': False,
+            'message': 'COOLIFY_API_TOKEN environment variable must be set'
+        }
+    
+    try:
+        # Get environment variables
+        envs_url = f"{COOLIFY_API_BASE_URL}/applications/{app_uuid}/envs"
+        headers = {
+            "Authorization": f"Bearer {token}"
+        }
+        
+        async with aiohttp.ClientSession() as session:
+            # Get environment variables
+            async with session.get(envs_url, headers=headers) as envs_response:
+                if envs_response.status != 200:
+                    error_msg = f'Failed to get environment variables (status {envs_response.status})'
+                    raise Exception(error_msg)
+                
+                envs_result = await envs_response.json()
+                logger.info(f"Retrieved {len(envs_result)} environment variables")
+            
+            # Get application details for domain/FQDN
+            app_url = f"{COOLIFY_API_BASE_URL}/applications/{app_uuid}"
+            async with session.get(app_url, headers=headers) as app_response:
+                if app_response.status != 200:
+                    error_msg = f'Failed to get application details (status {app_response.status})'
+                    raise Exception(error_msg)
+                
+                app_result = await app_response.json()
+                domain = app_result.get('fqdn', app_result.get('domain', ''))
+                logger.info(f"Application domain: {domain}")
+        
+        return {
+            'success': True,
+            'message': 'Successfully retrieved domain and environment variables',
+            'application_uuid': app_uuid,
+            'domain': domain,
+            'fqdn': domain,
+            'environment_variables': envs_result
+        }
+                    
+    except Exception as e:
+        error_msg = f"Failed to get domain and environment variables: {str(e)}"
+        logger.error(error_msg)
+        return {
+            'success': False,
+            'message': error_msg
+        }
+
+
 if __name__ == "__main__":
     logger.info("Starting Chrome MCP Server with Full Integration on 0.0.0.0:8000...")
     logger.info("Available tools:")
@@ -1494,7 +1594,8 @@ if __name__ == "__main__":
     logger.info("             codegen_list_agent_runs, codegen_cancel_agent_run")
     logger.info("  - GitHub: github_create_repo, github_list_repos, github_search_repo")
     logger.info("  - Coolify: coolify_list_applications, coolify_list_servers, coolify_get_server_details,")
-    logger.info("             coolify_create_application, coolify_restart_application, coolify_stop_application")
+    logger.info("             coolify_create_application, coolify_restart_application, coolify_stop_application,")
+    logger.info("             get_coolify_domain_and_envs")
     logger.info(f"ImgBB configured: {bool(IMGBB_API_KEY)}")
     logger.info(f"OpenRouter configured: {bool(OPENROUTER_API_KEY)}")
     logger.info(f"Codegen configured: {bool(CODEGEN_ORG_ID and CODEGEN_API_TOKEN)}")
