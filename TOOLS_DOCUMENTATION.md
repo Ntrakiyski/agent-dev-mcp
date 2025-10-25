@@ -897,6 +897,215 @@ github_update_pull_request(
 
 ---
 
+### 10. `github_get_repo_tree`
+
+**Description**: Get the complete file/folder structure of a GitHub repository.
+
+**Input Parameters**:
+
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| `owner` | string | ✅ Yes | - | GitHub username or organization name |
+| `repo` | string | ✅ Yes | - | Repository name |
+| `branch` | string | ❌ No | `"main"` | Branch name |
+| `recursive` | boolean | ❌ No | `true` | Whether to get full tree recursively |
+| `api_token` | string | ❌ No | env:`GITHUB_API_TOKEN` | GitHub API token |
+
+**Output Schema**:
+
+```json
+{
+  "success": true,
+  "message": "Retrieved repository tree with 127 files",
+  "repository": {
+    "owner": "Ntrakiyski",
+    "repo": "chrome-mcp",
+    "branch": "main",
+    "sha": "abc123def456..."
+  },
+  "tree": [
+    {
+      "path": "README.md",
+      "mode": "100644",
+      "type": "blob",
+      "size": 4512,
+      "sha": "def789..."
+    }
+  ],
+  "file_count": 127,
+  "directory_count": 15,
+  "total_size_bytes": 456789,
+  "truncated": false
+}
+```
+
+**Examples**:
+
+```python
+# Get full repository structure
+github_get_repo_tree("Ntrakiyski", "chrome-mcp")
+
+# Get specific branch
+github_get_repo_tree("Ntrakiyski", "chrome-mcp", branch="develop")
+```
+
+---
+
+### 11. `github_get_file_content`
+
+**Description**: Get the content of a file from a GitHub repository.
+
+**Input Parameters**:
+
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| `owner` | string | ✅ Yes | - | GitHub username or organization name |
+| `repo` | string | ✅ Yes | - | Repository name |
+| `path` | string | ✅ Yes | - | File path within the repository |
+| `branch` | string | ❌ No | `"main"` | Branch name |
+| `api_token` | string | ❌ No | env:`GITHUB_API_TOKEN` | GitHub API token |
+
+**Output Schema**:
+
+```json
+{
+  "success": true,
+  "message": "Successfully retrieved file src/server.py",
+  "file": {
+    "name": "server.py",
+    "path": "src/server.py",
+    "sha": "abc123def456...",
+    "size": 15678,
+    "encoding": "base64",
+    "content": "import asyncio\nfrom mcp import Server..."
+  }
+}
+```
+
+**Examples**:
+
+```python
+# Get file content
+result = github_get_file_content("Ntrakiyski", "chrome-mcp", "src/server.py")
+content = result["file"]["content"]  # Already decoded to string
+sha = result["file"]["sha"]  # Save this for updates!
+```
+
+---
+
+### 12. `github_update_file`
+
+**Description**: Update an existing file in a GitHub repository.
+
+**Input Parameters**:
+
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| `owner` | string | ✅ Yes | - | GitHub username or organization name |
+| `repo` | string | ✅ Yes | - | Repository name |
+| `path` | string | ✅ Yes | - | File path within the repository |
+| `content` | string | ✅ Yes | - | New file content as string |
+| `message` | string | ✅ Yes | - | Commit message |
+| `sha` | string | ✅ Yes | - | Current file SHA (from `github_get_file_content`) |
+| `branch` | string | ❌ No | `"main"` | Branch name |
+| `api_token` | string | ❌ No | env:`GITHUB_API_TOKEN` | GitHub API token |
+
+**Output Schema**:
+
+```json
+{
+  "success": true,
+  "message": "File src/server.py updated successfully",
+  "commit": {
+    "sha": "commit_sha...",
+    "message": "Update server.py with new features"
+  },
+  "file": {
+    "name": "server.py",
+    "path": "src/server.py",
+    "sha": "new_sha_xyz789...",
+    "size": 6234
+  }
+}
+```
+
+**Examples**:
+
+```python
+# First get current file content and SHA
+result = github_get_file_content("Ntrakiyski", "chrome-mcp", "src/server.py")
+current_sha = result["file"]["sha"]
+
+# Update the file
+new_content = "# Updated server code\nprint('Hello World')"
+github_update_file(
+    "Ntrakiyski",
+    "chrome-mcp",
+    "src/server.py",
+    new_content,
+    "Add hello world message",
+    current_sha
+)
+```
+
+---
+
+### 13. `github_create_file`
+
+**Description**: Create a new file in a GitHub repository.
+
+**Input Parameters**:
+
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| `owner` | string | ✅ Yes | - | GitHub username or organization name |
+| `repo` | string | ✅ Yes | - | Repository name |
+| `path` | string | ✅ Yes | - | File path within the repository |
+| `content` | string | ✅ Yes | - | File content as string |
+| `message` | string | ✅ Yes | - | Commit message |
+| `branch` | string | ❌ No | `"main"` | Branch name |
+| `api_token` | string | ❌ No | env:`GITHUB_API_TOKEN` | GitHub API token |
+
+**Output Schema**:
+
+```json
+{
+  "success": true,
+  "message": "File src/new_file.py created successfully",
+  "commit": {
+    "sha": "commit_sha...",
+    "message": "Add new authentication module"
+  },
+  "file": {
+    "name": "new_file.py",
+    "path": "src/new_file.py",
+    "sha": "file_sha_xyz789...",
+    "size": 892
+  }
+}
+```
+
+**Examples**:
+
+```python
+# Create a new file
+new_code = """
+def authenticate(token):
+    # Authentication logic
+    pass
+"""
+
+github_create_file(
+    "Ntrakiyski",
+    "chrome-mcp",
+    "src/auth.py",
+    new_code,
+    "Add authentication module"
+)
+```
+
+---
+
 ## Coolify API Tools
 
 **Note**: The following hardcoded values are used by default:

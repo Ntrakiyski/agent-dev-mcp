@@ -1624,8 +1624,366 @@ async def github_update_pull_request(
             'success': False,
             'message': error_msg
         }
+# =============================================================================
+# GITHUB FILE MANAGEMENT TOOLS
+# =============================================================================
+
+
+@mcp.tool()
+async def github_get_repo_tree(
+    owner: str,
+    repo: str,
+    branch: str = "main",
+    recursive: bool = True,
+    api_token: Optional[str] = None
+) -> dict:
+    """
+    Get the complete file/folder structure of a GitHub repository.
+
+    This tool retrieves the entire repository tree structure in one API call,
+    providing complete context of the repository without needing to fetch each file individually.
+
+    Args:
+        owner: GitHub username or organization name (required)
+        repo: Repository name (required)
+        branch: Branch name to get tree from (default: "main")
+        recursive: Whether to get the full recursive tree (default: True)
+        api_token: GitHub API token (optional, defaults to GITHUB_API_TOKEN env var)
+
+    Returns:
+        dict with success status, repository info, tree structure, and statistics
+    """
+    logger.info(f"Getting repository tree for {owner}/{repo} on branch {branch}")
+
+    token = api_token or GITHUB_API_TOKEN
+    if not token:
+        return {
+            'success': False,
+            'message': 'GITHUB_API_TOKEN environment variable must be set'
+        }
+
+    try:
+        # Step 1: Get the branch to find the tree SHA
+        branch_url = f"{GITHUB_API_BASE_URL}/repos/{owner}/{repo}/branches/{branch}"
+        headers = {
+            "Authorization": f"token {token}",
+            "Accept": "application/vnd.github+json"
+        }
+
+        async with aiohttp.ClientSession() as session:
+            async with session.get(branch_url, headers=headers) as response:
+                if response.status != 200:
+                    error_data = await response.json()
+                    error_msg = error_data.get('message', f'Failed to get branch info (status {response.status})')
+                    raise Exception(error_msg)
+
+                branch_data = await response.json()
+                tree_sha = branch_data["commit"]["commit"]["tree"]["sha"]
+
+            # Step 2: Get the tree (recursive if requested)
+            tree_url = f"{GITHUB_API_BASE_URL}/repos/{owner}/{repo}/git/trees/{tree_sha}"
+            if recursive:
+                tree_url += "?recursive=1"
+
+            async with session.get(tree_url, headers=headers) as response:
+                if response.status != 200:
+                    error_data = await response.json()
+                    error_msg = error_data.get('message', f'Failed to get tree (status {response.status})')
+                    raise Exception(error_msg)
+
+                tree_data = await response.json()
+
+        # Process the tree data
+        files = [item for item in tree_data["tree"] if item["type"] == "blob"]
+        dirs = [item for item in tree_data["tree"] if item["type"] == "tree"]
+        total_size = sum(item.get("size", 0) for item in files)
+
+        logger.info(f"Retrieved tree with {len(files)} files and {len(dirs)} directories")
+
+        return {
+            'success': True,
+            'message': f'Retrieved repository tree with {len(files)} files',
+            'repository': {
+                'owner': owner,
+                'repo': repo,
+                'branch': branch,
+                'sha': tree_sha
+            },
+            'tree': tree_data["tree"],
+            'file_count': len(files),
+            'directory_count': len(dirs),
+            'total_size_bytes': total_size,
+            'truncated': tree_data.get("truncated", False)
+        }
+
+    except Exception as e:
+        error_msg = f"Failed to get repository tree: {str(e)}"
+        logger.error(error_msg)
+        return {
+            'success': False,
+            'message': error_msg
+        }
+
+
 
 # =============================================================================
+\
+@mcp.tool()
+async def github_get_file_content(
+    owner: str,
+    repo: str,
+    path: str,
+    branch: str = "main",
+    api_token: Optional[str] = None
+) -> dict:
+    """
+    Get the content of a file from a GitHub repository.
+
+    Retrieves file content, metadata, and SHA (needed for updates/deletes).
+    Content is returned as decoded text.
+
+    Args:
+        owner: GitHub username or organization name (required)
+        repo: Repository name (required)
+        path: File path within the repository (required)
+        branch: Branch name (default: "main")
+        api_token: GitHub API token (optional, defaults to GITHUB_API_TOKEN env var)
+
+    Returns:
+        dict with file information including content and SHA
+    """
+    logger.info(f"Getting file content for {owner}/{repo}/{path} on branch {branch}")
+
+    token = api_token or GITHUB_API_TOKEN
+    if not token:
+        return {
+            'success': False,
+            'message': 'GITHUB_API_TOKEN environment variable must be set'
+        }
+
+    try:
+        url = f"{GITHUB_API_BASE_URL}/repos/{owner}/{repo}/contents/{path}?ref={branch}"
+        headers = {
+            "Authorization": f"token {token}",
+            "Accept": "application/vnd.github+json"
+        }
+
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url, headers=headers) as response:
+                if response.status != 200:
+                    error_data = await response.json()
+                    error_msg = error_data.get('message', f'Failed to get file (status {response.status})')
+                    raise Exception(error_msg)
+
+                file_data = await response.json()
+
+        # Decode base64 content
+        content_b64 = file_data.get("content", "")
+        if content_b64:
+            try:
+                content = base64.b64decode(content_b64).decode("utf-8")
+            except UnicodeDecodeError:
+                # If it's not UTF-8 text, return base64 and note it
+                content = f"[BINARY FILE - {len(content_b64)} bytes base64 encoded]"
+        else:
+            content = ""
+
+        logger.info(f"Retrieved file {path} ({len(content)} characters)")
+
+        return {
+            'success': True,
+            'message': f'Successfully retrieved file {path}',
+            'file': {
+                'name': file_data.get('name') ,
+                'path': file_data.get('path') ,
+                'sha': file_data.get('sha') ,  # IMPORTANT: Save this!
+                'size': file_data.get('size', 0),
+                'encoding': file_data.get('encoding', 'base64') ,
+                'content': content
+            }
+        }
+
+    except Exception as e:
+        error_msg = f"Failed to get file content: {str(e)}"
+        logger.error(error_msg)
+        return {
+            'success': False,
+            'message': error_msg
+        }
+
+
+\
+@mcp.tool()
+async def github_update_file(
+    owner: str,
+    repo: str,
+    path: str,
+    content: str,
+    message: str,
+    sha: str,
+    branch: str = "main",
+    api_token: Optional[str] = None
+) -> dict:
+    """
+    Update an existing file in a GitHub repository.
+
+    IMPORTANT: You MUST provide the current file SHA (obtained from github_get_file_content).
+    If the SHA doesn't match the current file, the update will fail with a 409 Conflict error.
+
+    Args:
+        owner: GitHub username or organization name (required)
+        repo: Repository name (required)
+        path: File path within the repository (required)
+        content: New file content as string (required)
+        message: Commit message (required)
+        sha: Current file SHA (required - get from github_get_file_content)
+        branch: Branch name (default: "main")
+        api_token: GitHub API token (optional, defaults to GITHUB_API_TOKEN env var)
+
+    Returns:
+        dict with commit and file information
+    """
+    logger.info(f"Updating file {owner}/{repo}/{path} on branch {branch}")
+
+    token = api_token or GITHUB_API_TOKEN
+    if not token:
+        return {
+            'success': False,
+            'message': 'GITHUB_API_TOKEN environment variable must be set'
+        }
+
+    try:
+        # Encode content to base64
+        content_b64 = base64.b64encode(content.encode("utf-8")).decode("utf-8")
+
+        url = f"{GITHUB_API_BASE_URL}/repos/{owner}/{repo}/contents/{path}"
+        headers = {
+            "Authorization": f"token {token}",
+            "Accept": "application/vnd.github+json",
+            "Content-Type": "application/json"
+        }
+        payload = {
+            "message": message,
+            "content": content_b64,
+            "sha": sha,  # IMPORTANT: Current file SHA
+            "branch": branch
+        }
+
+        async with aiohttp.ClientSession() as session:
+            async with session.put(url, headers=headers, json=payload) as response:
+                if response.status == 200 or response.status == 201:
+                    result = await response.json()
+                    logger.info(f"File {path} updated successfully")
+                    return {
+                        'success': True,
+                        'message': f'File {path} updated successfully',
+                        'commit': result.get('commit') ,
+                        'file': {
+                            'name': result['content'].get('name') ,
+                            'path': result['content'].get('path') ,
+                            'sha': result['content'].get('sha') ,  # New SHA
+                            'size': result['content'].get('size', 0)
+                        }
+                    }
+                else:
+                    error_data = await response.json()
+                    error_msg = error_data.get('message', f'API request failed with status {response.status}')
+                    raise Exception(error_msg)
+
+    except Exception as e:
+        error_msg = f"Failed to update file: {str(e)}"
+        logger.error(error_msg)
+        return {
+            'success': False,
+            'message': error_msg
+        }
+
+
+\
+@mcp.tool()
+async def github_create_file(
+    owner: str,
+    repo: str,
+    path: str,
+    content: str,
+    message: str,
+    branch: str = "main",
+    api_token: Optional[str] = None
+) -> dict:
+    """
+    Create a new file in a GitHub repository.
+
+    Note: If a file already exists at the given path, this will fail.
+    Use github_update_file to modify existing files.
+
+    Args:
+        owner: GitHub username or organization name (required)
+        repo: Repository name (required)
+        path: File path within the repository (required)
+        content: File content as string (required)
+        message: Commit message (required)
+        branch: Branch name (default: "main")
+        api_token: GitHub API token (optional, defaults to GITHUB_API_TOKEN env var)
+
+    Returns:
+        dict with commit and file information
+    """
+    logger.info(f"Creating file {owner}/{repo}/{path} on branch {branch}")
+
+    token = api_token or GITHUB_API_TOKEN
+    if not token:
+        return {
+            'success': False,
+            'message': 'GITHUB_API_TOKEN environment variable must be set'
+        }
+
+    try:
+        # Encode content to base64
+        content_b64 = base64.b64encode(content.encode("utf-8")).decode("utf-8")
+
+        url = f"{GITHUB_API_BASE_URL}/repos/{owner}/{repo}/contents/{path}"
+        headers = {
+            "Authorization": f"token {token}",
+            "Accept": "application/vnd.github+json",
+            "Content-Type": "application/json"
+        }
+        payload = {
+            "message": message,
+            "content": content_b64,
+            "branch": branch
+            # NOTE: No 'sha' field for new files
+        }
+
+        async with aiohttp.ClientSession() as session:
+            async with session.put(url, headers=headers, json=payload) as response:
+                if response.status == 201:
+                    result = await response.json()
+                    logger.info(f"File {path} created successfully")
+                    return {
+                        'success': True,
+                        'message': f'File {path} created successfully',
+                        'commit': result.get('commit') ,
+                        'file': {
+                            'name': result['content'].get('name') ,
+                            'path': result['content'].get('path') ,
+                            'sha': result['content'].get('sha') ,
+                            'size': result['content'].get('size', 0)
+                        }
+                    }
+                else:
+                    error_data = await response.json()
+                    error_msg = error_data.get('message', f'API request failed with status {response.status}')
+                    raise Exception(error_msg)
+
+    except Exception as e:
+        error_msg = f"Failed to create file: {str(e)}"
+        logger.error(error_msg)
+        return {
+            'success': False,
+            'message': error_msg
+        }
+
+
 # COOLIFY API TOOLS
 # =============================================================================
 
@@ -2146,9 +2504,10 @@ if __name__ == "__main__":
     logger.info("  - Screenshot: take_screenshot, get_page_title, ask_about_screenshot, health_check")
     logger.info("  - Codegen: codegen_create_agent_run, codegen_get_agent_run, codegen_reply_to_agent_run,")
     logger.info("             codegen_list_agent_runs, codegen_cancel_agent_run")
-    logger.info("  - GitHub: github_create_repo, github_list_repos, github_search_repo")
+    logger.info("  - GitHub: github_create_repo, github_list_repos, github_search_repo, github_get_repo_tree,")
     logger.info("            github_list_pull_requests, github_get_pull_request, github_merge_pull_request,")
-    logger.info("            github_list_pull_request_files, github_check_pull_request_merged, github_update_pull_request")
+    logger.info("            github_list_pull_request_files, github_check_pull_request_merged, github_update_pull_request,")
+    logger.info("            github_get_file_content, github_update_file, github_create_file")
     logger.info("  - Coolify: coolify_list_applications, coolify_list_servers, coolify_get_server_details,")
     logger.info("             coolify_create_application, coolify_restart_application, coolify_stop_application,")
     logger.info("             get_coolify_domain_and_envs")
