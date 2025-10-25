@@ -1070,6 +1070,560 @@ async def github_list_repos(
 #             'total_count': 0
 #         }
 
+# =============================================================================
+# GITHUB PULL REQUEST TOOLS
+# =============================================================================
+
+@mcp.tool()
+async def github_list_pull_requests(
+    owner: str,
+    repo: str,
+    state: str = "open",
+    per_page: int = 30,
+    page: int = 1,
+    api_token: Optional[str] = None
+) -> dict:
+    """
+    List pull requests in a GitHub repository.
+    
+    Args:
+        owner: Repository owner username (e.g., "Ntrakiyski")
+        repo: Repository name (e.g., "chrome-mcp")
+        state: PR state filter - "open", "closed", or "all" (default: "open")
+        per_page: Number of PRs per page (default: 30, max: 100)
+        page: Page number (default: 1)
+        api_token: GitHub API token (optional, defaults to GITHUB_API_TOKEN env var)
+    
+    Returns:
+        dict: {
+            'success': bool,
+            'message': str,
+            'pull_requests': list[dict],
+            'count': int
+        }
+    
+    Examples:
+        - github_list_pull_requests("Ntrakiyski", "chrome-mcp")
+        - github_list_pull_requests("Ntrakiyski", "chrome-mcp", state="all")
+    """
+    logger.info(f"Listing pull requests for {owner}/{repo} (state: {state})")
+    
+    token = api_token or GITHUB_API_TOKEN
+    if not token:
+        return {
+            'success': False,
+            'message': 'GITHUB_API_TOKEN environment variable must be set'
+        }
+    
+    try:
+        url = f"{GITHUB_API_BASE_URL}/repos/{owner}/{repo}/pulls"
+        headers = {
+            "Authorization": f"token {token}",
+            "Accept": "application/vnd.github+json",
+            "X-GitHub-Api-Version": "2022-11-28"
+        }
+        params = {
+            "state": state,
+            "per_page": per_page,
+            "page": page
+        }
+        
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url, headers=headers, params=params) as response:
+                if response.status == 200:
+                    result = await response.json()
+                    prs = [{
+                        'number': pr.get('number'),
+                        'title': pr.get('title'),
+                        'state': pr.get('state'),
+                        'user': pr.get('user', {}).get('login'),
+                        'created_at': pr.get('created_at'),
+                        'updated_at': pr.get('updated_at'),
+                        'html_url': pr.get('html_url'),
+                        'head': pr.get('head', {}).get('ref'),
+                        'base': pr.get('base', {}).get('ref'),
+                        'mergeable': pr.get('mergeable'),
+                        'draft': pr.get('draft')
+                    } for pr in result]
+                    
+                    logger.info(f"Retrieved {len(prs)} pull requests")
+                    return {
+                        'success': True,
+                        'message': f'Retrieved {len(prs)} pull requests',
+                        'pull_requests': prs,
+                        'count': len(prs)
+                    }
+                else:
+                    error_data = await response.json()
+                    error_msg = error_data.get('message', f'API request failed with status {response.status}')
+                    raise Exception(error_msg)
+                    
+    except Exception as e:
+        error_msg = f"Failed to list pull requests: {str(e)}"
+        logger.error(error_msg)
+        return {
+            'success': False,
+            'message': error_msg,
+            'pull_requests': [],
+            'count': 0
+        }
+
+
+@mcp.tool()
+async def github_get_pull_request(
+    owner: str,
+    repo: str,
+    pull_number: int,
+    api_token: Optional[str] = None
+) -> dict:
+    """
+    Get detailed information about a specific pull request.
+    
+    Args:
+        owner: Repository owner username (e.g., "Ntrakiyski")
+        repo: Repository name (e.g., "chrome-mcp")
+        pull_number: Pull request number (e.g., 42)
+        api_token: GitHub API token (optional, defaults to GITHUB_API_TOKEN env var)
+    
+    Returns:
+        dict: {
+            'success': bool,
+            'message': str,
+            'pull_request': dict with full PR details
+        }
+    
+    Examples:
+        - github_get_pull_request("Ntrakiyski", "chrome-mcp", 1)
+    """
+    logger.info(f"Getting PR #{pull_number} for {owner}/{repo}")
+    
+    token = api_token or GITHUB_API_TOKEN
+    if not token:
+        return {
+            'success': False,
+            'message': 'GITHUB_API_TOKEN environment variable must be set'
+        }
+    
+    try:
+        url = f"{GITHUB_API_BASE_URL}/repos/{owner}/{repo}/pulls/{pull_number}"
+        headers = {
+            "Authorization": f"token {token}",
+            "Accept": "application/vnd.github+json",
+            "X-GitHub-Api-Version": "2022-11-28"
+        }
+        
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url, headers=headers) as response:
+                if response.status == 200:
+                    pr = await response.json()
+                    logger.info(f"Retrieved PR #{pull_number}: {pr.get('title')}")
+                    
+                    return {
+                        'success': True,
+                        'message': f"Retrieved PR #{pull_number}",
+                        'pull_request': {
+                            'number': pr.get('number'),
+                            'title': pr.get('title'),
+                            'body': pr.get('body'),
+                            'state': pr.get('state'),
+                            'user': pr.get('user', {}).get('login'),
+                            'created_at': pr.get('created_at'),
+                            'updated_at': pr.get('updated_at'),
+                            'closed_at': pr.get('closed_at'),
+                            'merged_at': pr.get('merged_at'),
+                            'html_url': pr.get('html_url'),
+                            'head': pr.get('head', {}).get('ref'),
+                            'base': pr.get('base', {}).get('ref'),
+                            'mergeable': pr.get('mergeable'),
+                            'mergeable_state': pr.get('mergeable_state'),
+                            'merged': pr.get('merged'),
+                            'draft': pr.get('draft'),
+                            'commits': pr.get('commits'),
+                            'additions': pr.get('additions'),
+                            'deletions': pr.get('deletions'),
+                            'changed_files': pr.get('changed_files')
+                        }
+                    }
+                else:
+                    error_data = await response.json()
+                    error_msg = error_data.get('message', f'API request failed with status {response.status}')
+                    raise Exception(error_msg)
+                    
+    except Exception as e:
+        error_msg = f"Failed to get pull request: {str(e)}"
+        logger.error(error_msg)
+        return {
+            'success': False,
+            'message': error_msg
+        }
+
+
+@mcp.tool()
+async def github_merge_pull_request(
+    owner: str,
+    repo: str,
+    pull_number: int,
+    commit_title: Optional[str] = None,
+    commit_message: Optional[str] = None,
+    merge_method: str = "merge",
+    api_token: Optional[str] = None
+) -> dict:
+    """
+    Merge a pull request.
+    
+    Args:
+        owner: Repository owner username (e.g., "Ntrakiyski")
+        repo: Repository name (e.g., "chrome-mcp")
+        pull_number: Pull request number to merge
+        commit_title: Title for the merge commit (optional, auto-generated if not provided)
+        commit_message: Extra detail for merge commit message (optional)
+        merge_method: Merge method - "merge", "squash", or "rebase" (default: "merge")
+        api_token: GitHub API token (optional, defaults to GITHUB_API_TOKEN env var)
+    
+    Returns:
+        dict: {
+            'success': bool,
+            'message': str,
+            'sha': str (commit SHA if successful),
+            'merged': bool
+        }
+    
+    Examples:
+        - github_merge_pull_request("Ntrakiyski", "chrome-mcp", 1)
+        - github_merge_pull_request("Ntrakiyski", "chrome-mcp", 1, merge_method="squash")
+    """
+    logger.info(f"Merging PR #{pull_number} for {owner}/{repo} (method: {merge_method})")
+    
+    token = api_token or GITHUB_API_TOKEN
+    if not token:
+        return {
+            'success': False,
+            'message': 'GITHUB_API_TOKEN environment variable must be set'
+        }
+    
+    # Validate merge method
+    if merge_method not in ["merge", "squash", "rebase"]:
+        return {
+            'success': False,
+            'message': f'Invalid merge_method: {merge_method}. Must be "merge", "squash", or "rebase"'
+        }
+    
+    try:
+        url = f"{GITHUB_API_BASE_URL}/repos/{owner}/{repo}/pulls/{pull_number}/merge"
+        headers = {
+            "Authorization": f"token {token}",
+            "Accept": "application/vnd.github+json",
+            "X-GitHub-Api-Version": "2022-11-28"
+        }
+        payload = {
+            "merge_method": merge_method
+        }
+        if commit_title:
+            payload["commit_title"] = commit_title
+        if commit_message:
+            payload["commit_message"] = commit_message
+        
+        async with aiohttp.ClientSession() as session:
+            async with session.put(url, headers=headers, json=payload) as response:
+                result = await response.json()
+                
+                if response.status == 200:
+                    logger.info(f"PR #{pull_number} merged successfully")
+                    return {
+                        'success': True,
+                        'message': result.get('message', 'Pull request merged successfully'),
+                        'sha': result.get('sha'),
+                        'merged': result.get('merged', True)
+                    }
+                elif response.status == 405:
+                    return {
+                        'success': False,
+                        'message': 'Pull request cannot be merged (method not allowed). Check if PR is mergeable and branch protection rules.'
+                    }
+                elif response.status == 409:
+                    return {
+                        'success': False,
+                        'message': 'Merge conflict detected. Pull request head branch must be updated.'
+                    }
+                else:
+                    error_msg = result.get('message', f'API request failed with status {response.status}')
+                    raise Exception(error_msg)
+                    
+    except Exception as e:
+        error_msg = f"Failed to merge pull request: {str(e)}"
+        logger.error(error_msg)
+        return {
+            'success': False,
+            'message': error_msg,
+            'merged': False
+        }
+
+
+@mcp.tool()
+async def github_list_pull_request_files(
+    owner: str,
+    repo: str,
+    pull_number: int,
+    per_page: int = 30,
+    page: int = 1,
+    api_token: Optional[str] = None
+) -> dict:
+    """
+    List files changed in a pull request.
+    
+    Args:
+        owner: Repository owner username (e.g., "Ntrakiyski")
+        repo: Repository name (e.g., "chrome-mcp")
+        pull_number: Pull request number
+        per_page: Number of files per page (default: 30, max: 100)
+        page: Page number (default: 1)
+        api_token: GitHub API token (optional, defaults to GITHUB_API_TOKEN env var)
+    
+    Returns:
+        dict: {
+            'success': bool,
+            'message': str,
+            'files': list[dict],
+            'count': int
+        }
+    
+    Examples:
+        - github_list_pull_request_files("Ntrakiyski", "chrome-mcp", 1)
+    """
+    logger.info(f"Listing files for PR #{pull_number} in {owner}/{repo}")
+    
+    token = api_token or GITHUB_API_TOKEN
+    if not token:
+        return {
+            'success': False,
+            'message': 'GITHUB_API_TOKEN environment variable must be set'
+        }
+    
+    try:
+        url = f"{GITHUB_API_BASE_URL}/repos/{owner}/{repo}/pulls/{pull_number}/files"
+        headers = {
+            "Authorization": f"token {token}",
+            "Accept": "application/vnd.github+json",
+            "X-GitHub-Api-Version": "2022-11-28"
+        }
+        params = {
+            "per_page": per_page,
+            "page": page
+        }
+        
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url, headers=headers, params=params) as response:
+                if response.status == 200:
+                    result = await response.json()
+                    files = [{
+                        'filename': f.get('filename'),
+                        'status': f.get('status'),
+                        'additions': f.get('additions'),
+                        'deletions': f.get('deletions'),
+                        'changes': f.get('changes'),
+                        'blob_url': f.get('blob_url'),
+                        'raw_url': f.get('raw_url'),
+                        'patch': f.get('patch', '')[:500]  # Truncate patch to 500 chars
+                    } for f in result]
+                    
+                    logger.info(f"Retrieved {len(files)} files for PR #{pull_number}")
+                    return {
+                        'success': True,
+                        'message': f'Retrieved {len(files)} files',
+                        'files': files,
+                        'count': len(files)
+                    }
+                else:
+                    error_data = await response.json()
+                    error_msg = error_data.get('message', f'API request failed with status {response.status}')
+                    raise Exception(error_msg)
+                    
+    except Exception as e:
+        error_msg = f"Failed to list PR files: {str(e)}"
+        logger.error(error_msg)
+        return {
+            'success': False,
+            'message': error_msg,
+            'files': [],
+            'count': 0
+        }
+
+
+@mcp.tool()
+async def github_check_pull_request_merged(
+    owner: str,
+    repo: str,
+    pull_number: int,
+    api_token: Optional[str] = None
+) -> dict:
+    """
+    Check if a pull request has been merged.
+    
+    Args:
+        owner: Repository owner username (e.g., "Ntrakiyski")
+        repo: Repository name (e.g., "chrome-mcp")
+        pull_number: Pull request number
+        api_token: GitHub API token (optional, defaults to GITHUB_API_TOKEN env var)
+    
+    Returns:
+        dict: {
+            'success': bool,
+            'message': str,
+            'merged': bool
+        }
+    
+    Examples:
+        - github_check_pull_request_merged("Ntrakiyski", "chrome-mcp", 1)
+    """
+    logger.info(f"Checking if PR #{pull_number} is merged in {owner}/{repo}")
+    
+    token = api_token or GITHUB_API_TOKEN
+    if not token:
+        return {
+            'success': False,
+            'message': 'GITHUB_API_TOKEN environment variable must be set'
+        }
+    
+    try:
+        url = f"{GITHUB_API_BASE_URL}/repos/{owner}/{repo}/pulls/{pull_number}/merge"
+        headers = {
+            "Authorization": f"token {token}",
+            "Accept": "application/vnd.github+json",
+            "X-GitHub-Api-Version": "2022-11-28"
+        }
+        
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url, headers=headers) as response:
+                if response.status == 204:
+                    logger.info(f"PR #{pull_number} is merged")
+                    return {
+                        'success': True,
+                        'message': f'PR #{pull_number} has been merged',
+                        'merged': True
+                    }
+                elif response.status == 404:
+                    logger.info(f"PR #{pull_number} is NOT merged")
+                    return {
+                        'success': True,
+                        'message': f'PR #{pull_number} has NOT been merged',
+                        'merged': False
+                    }
+                else:
+                    error_data = await response.json()
+                    error_msg = error_data.get('message', f'API request failed with status {response.status}')
+                    raise Exception(error_msg)
+                    
+    except Exception as e:
+        error_msg = f"Failed to check merge status: {str(e)}"
+        logger.error(error_msg)
+        return {
+            'success': False,
+            'message': error_msg,
+            'merged': False
+        }
+
+
+@mcp.tool()
+async def github_update_pull_request(
+    owner: str,
+    repo: str,
+    pull_number: int,
+    title: Optional[str] = None,
+    body: Optional[str] = None,
+    state: Optional[str] = None,
+    base: Optional[str] = None,
+    api_token: Optional[str] = None
+) -> dict:
+    """
+    Update a pull request (title, body, state, or base branch).
+    
+    Args:
+        owner: Repository owner username (e.g., "Ntrakiyski")
+        repo: Repository name (e.g., "chrome-mcp")
+        pull_number: Pull request number to update
+        title: New PR title (optional)
+        body: New PR body/description (optional)
+        state: New PR state - "open" or "closed" (optional)
+        base: New base branch name (optional)
+        api_token: GitHub API token (optional, defaults to GITHUB_API_TOKEN env var)
+    
+    Returns:
+        dict: {
+            'success': bool,
+            'message': str,
+            'pull_request': dict with updated PR details
+        }
+    
+    Examples:
+        - github_update_pull_request("Ntrakiyski", "chrome-mcp", 1, title="New Title")
+        - github_update_pull_request("Ntrakiyski", "chrome-mcp", 1, state="closed")
+    """
+    logger.info(f"Updating PR #{pull_number} for {owner}/{repo}")
+    
+    token = api_token or GITHUB_API_TOKEN
+    if not token:
+        return {
+            'success': False,
+            'message': 'GITHUB_API_TOKEN environment variable must be set'
+        }
+    
+    # Build payload with only provided fields
+    payload = {}
+    if title is not None:
+        payload["title"] = title
+    if body is not None:
+        payload["body"] = body
+    if state is not None:
+        if state not in ["open", "closed"]:
+            return {
+                'success': False,
+                'message': f'Invalid state: {state}. Must be "open" or "closed"'
+            }
+        payload["state"] = state
+    if base is not None:
+        payload["base"] = base
+    
+    if not payload:
+        return {
+            'success': False,
+            'message': 'No update parameters provided (title, body, state, or base)'
+        }
+    
+    try:
+        url = f"{GITHUB_API_BASE_URL}/repos/{owner}/{repo}/pulls/{pull_number}"
+        headers = {
+            "Authorization": f"token {token}",
+            "Accept": "application/vnd.github+json",
+            "X-GitHub-Api-Version": "2022-11-28"
+        }
+        
+        async with aiohttp.ClientSession() as session:
+            async with session.patch(url, headers=headers, json=payload) as response:
+                if response.status == 200:
+                    pr = await response.json()
+                    logger.info(f"PR #{pull_number} updated successfully")
+                    return {
+                        'success': True,
+                        'message': f"PR #{pull_number} updated successfully",
+                        'pull_request': {
+                            'number': pr.get('number'),
+                            'title': pr.get('title'),
+                            'state': pr.get('state'),
+                            'html_url': pr.get('html_url')
+                        }
+                    }
+                else:
+                    error_data = await response.json()
+                    error_msg = error_data.get('message', f'API request failed with status {response.status}')
+                    raise Exception(error_msg)
+                    
+    except Exception as e:
+        error_msg = f"Failed to update pull request: {str(e)}"
+        logger.error(error_msg)
+        return {
+            'success': False,
+            'message': error_msg
+        }
 
 # =============================================================================
 # COOLIFY API TOOLS
@@ -1593,6 +2147,8 @@ if __name__ == "__main__":
     logger.info("  - Codegen: codegen_create_agent_run, codegen_get_agent_run, codegen_reply_to_agent_run,")
     logger.info("             codegen_list_agent_runs, codegen_cancel_agent_run")
     logger.info("  - GitHub: github_create_repo, github_list_repos, github_search_repo")
+    logger.info("            github_list_pull_requests, github_get_pull_request, github_merge_pull_request,")
+    logger.info("            github_list_pull_request_files, github_check_pull_request_merged, github_update_pull_request")
     logger.info("  - Coolify: coolify_list_applications, coolify_list_servers, coolify_get_server_details,")
     logger.info("             coolify_create_application, coolify_restart_application, coolify_stop_application,")
     logger.info("             get_coolify_domain_and_envs")
