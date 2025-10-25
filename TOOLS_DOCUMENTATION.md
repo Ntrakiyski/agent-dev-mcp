@@ -559,6 +559,344 @@ github_search_repo("react", username="facebook")
 
 ---
 
+### 4. `github_list_pull_requests`
+
+**Description**: List pull requests in a GitHub repository with state filtering.
+
+**Input Parameters**:
+
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| `owner` | string | ✅ Yes | - | Repository owner username (e.g., "Ntrakiyski") |
+| `repo` | string | ✅ Yes | - | Repository name (e.g., "chrome-mcp") |
+| `state` | string | ❌ No | `"open"` | PR state filter: "open", "closed", or "all" |
+| `per_page` | integer | ❌ No | `30` | Number of PRs per page (max: 100) |
+| `page` | integer | ❌ No | `1` | Page number |
+| `api_token` | string | ❌ No | env:`GITHUB_API_TOKEN` | GitHub API token |
+
+**Output Schema**:
+
+```json
+{
+  "success": true,
+  "message": "Retrieved 3 pull requests",
+  "pull_requests": [
+    {
+      "number": 1,
+      "title": "Add new feature",
+      "state": "open",
+      "user": "username",
+      "created_at": "2024-01-01T12:00:00Z",
+      "updated_at": "2024-01-02T12:00:00Z",
+      "html_url": "https://github.com/owner/repo/pull/1",
+      "head": "feature-branch",
+      "base": "main",
+      "mergeable": true,
+      "draft": false
+    }
+  ],
+  "count": 3
+}
+```
+
+**Examples**:
+
+```python
+# List open PRs
+github_list_pull_requests("Ntrakiyski", "chrome-mcp")
+
+# List all PRs (open + closed)
+github_list_pull_requests("Ntrakiyski", "chrome-mcp", state="all")
+
+# List closed PRs with pagination
+github_list_pull_requests("Ntrakiyski", "chrome-mcp", state="closed", per_page=50, page=1)
+```
+
+---
+
+### 5. `github_get_pull_request`
+
+**Description**: Get detailed information about a specific pull request including mergeable state, commit count, and file statistics.
+
+**Input Parameters**:
+
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| `owner` | string | ✅ Yes | - | Repository owner username |
+| `repo` | string | ✅ Yes | - | Repository name |
+| `pull_number` | integer | ✅ Yes | - | Pull request number |
+| `api_token` | string | ❌ No | env:`GITHUB_API_TOKEN` | GitHub API token |
+
+**Output Schema**:
+
+```json
+{
+  "success": true,
+  "message": "Retrieved PR #1",
+  "pull_request": {
+    "number": 1,
+    "title": "Add new feature",
+    "body": "This PR adds...",
+    "state": "open",
+    "user": "username",
+    "created_at": "2024-01-01T12:00:00Z",
+    "updated_at": "2024-01-02T12:00:00Z",
+    "closed_at": null,
+    "merged_at": null,
+    "html_url": "https://github.com/owner/repo/pull/1",
+    "head": "feature-branch",
+    "base": "main",
+    "mergeable": true,
+    "mergeable_state": "clean",
+    "merged": false,
+    "draft": false,
+    "commits": 5,
+    "additions": 120,
+    "deletions": 30,
+    "changed_files": 8
+  }
+}
+```
+
+**Examples**:
+
+```python
+# Get PR details
+github_get_pull_request("Ntrakiyski", "chrome-mcp", 1)
+
+# Check if PR is mergeable
+result = github_get_pull_request("Ntrakiyski", "chrome-mcp", 1)
+if result["pull_request"]["mergeable"]:
+    print("PR can be merged!")
+```
+
+---
+
+### 6. `github_merge_pull_request`
+
+**Description**: Merge a pull request using merge, squash, or rebase strategy.
+
+**Input Parameters**:
+
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| `owner` | string | ✅ Yes | - | Repository owner username |
+| `repo` | string | ✅ Yes | - | Repository name |
+| `pull_number` | integer | ✅ Yes | - | Pull request number to merge |
+| `commit_title` | string | ❌ No | `null` | Custom merge commit title (auto-generated if not provided) |
+| `commit_message` | string | ❌ No | `null` | Additional commit message details |
+| `merge_method` | string | ❌ No | `"merge"` | Merge method: "merge", "squash", or "rebase" |
+| `api_token` | string | ❌ No | env:`GITHUB_API_TOKEN` | GitHub API token |
+
+**Output Schema**:
+
+Success response:
+```json
+{
+  "success": true,
+  "message": "Pull request merged successfully",
+  "sha": "abc123def456...",
+  "merged": true
+}
+```
+
+Error responses:
+```json
+{
+  "success": false,
+  "message": "Pull request cannot be merged (method not allowed). Check if PR is mergeable and branch protection rules."
+}
+```
+
+```json
+{
+  "success": false,
+  "message": "Merge conflict detected. Pull request head branch must be updated."
+}
+```
+
+**Examples**:
+
+```python
+# Standard merge
+github_merge_pull_request("Ntrakiyski", "chrome-mcp", 1)
+
+# Squash merge with custom message
+github_merge_pull_request(
+    "Ntrakiyski", 
+    "chrome-mcp", 
+    1, 
+    commit_title="Add GitHub PR tools",
+    commit_message="Implements list, get, merge, and update PR functionality",
+    merge_method="squash"
+)
+
+# Rebase merge
+github_merge_pull_request("Ntrakiyski", "chrome-mcp", 1, merge_method="rebase")
+```
+
+---
+
+### 7. `github_list_pull_request_files`
+
+**Description**: List all files changed in a pull request with addition/deletion statistics.
+
+**Input Parameters**:
+
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| `owner` | string | ✅ Yes | - | Repository owner username |
+| `repo` | string | ✅ Yes | - | Repository name |
+| `pull_number` | integer | ✅ Yes | - | Pull request number |
+| `per_page` | integer | ❌ No | `30` | Number of files per page (max: 100) |
+| `page` | integer | ❌ No | `1` | Page number |
+| `api_token` | string | ❌ No | env:`GITHUB_API_TOKEN` | GitHub API token |
+
+**Output Schema**:
+
+```json
+{
+  "success": true,
+  "message": "Retrieved 5 files",
+  "files": [
+    {
+      "filename": "server.py",
+      "status": "modified",
+      "additions": 150,
+      "deletions": 20,
+      "changes": 170,
+      "blob_url": "https://github.com/owner/repo/blob/abc123/server.py",
+      "raw_url": "https://github.com/owner/repo/raw/abc123/server.py",
+      "patch": "@@ -100,7 +100,7 @@ def function():\n-    old line\n+    new line"
+    }
+  ],
+  "count": 5
+}
+```
+
+**Examples**:
+
+```python
+# List files in PR
+github_list_pull_request_files("Ntrakiyski", "chrome-mcp", 1)
+
+# Get second page of files
+github_list_pull_request_files("Ntrakiyski", "chrome-mcp", 1, per_page=50, page=2)
+```
+
+---
+
+### 8. `github_check_pull_request_merged`
+
+**Description**: Check if a pull request has been merged (returns 204 if merged, 404 if not merged).
+
+**Input Parameters**:
+
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| `owner` | string | ✅ Yes | - | Repository owner username |
+| `repo` | string | ✅ Yes | - | Repository name |
+| `pull_number` | integer | ✅ Yes | - | Pull request number |
+| `api_token` | string | ❌ No | env:`GITHUB_API_TOKEN` | GitHub API token |
+
+**Output Schema**:
+
+Merged PR:
+```json
+{
+  "success": true,
+  "message": "PR #1 has been merged",
+  "merged": true
+}
+```
+
+Not merged PR:
+```json
+{
+  "success": true,
+  "message": "PR #1 has NOT been merged",
+  "merged": false
+}
+```
+
+**Examples**:
+
+```python
+# Check merge status
+result = github_check_pull_request_merged("Ntrakiyski", "chrome-mcp", 1)
+if result["merged"]:
+    print("PR is merged!")
+else:
+    print("PR is still open or closed but not merged")
+```
+
+---
+
+### 9. `github_update_pull_request`
+
+**Description**: Update a pull request's title, body, state, or base branch.
+
+**Input Parameters**:
+
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| `owner` | string | ✅ Yes | - | Repository owner username |
+| `repo` | string | ✅ Yes | - | Repository name |
+| `pull_number` | integer | ✅ Yes | - | Pull request number to update |
+| `title` | string | ❌ No | `null` | New PR title |
+| `body` | string | ❌ No | `null` | New PR body/description |
+| `state` | string | ❌ No | `null` | New PR state: "open" or "closed" |
+| `base` | string | ❌ No | `null` | New base branch name |
+| `api_token` | string | ❌ No | env:`GITHUB_API_TOKEN` | GitHub API token |
+
+**Output Schema**:
+
+```json
+{
+  "success": true,
+  "message": "PR #1 updated successfully",
+  "pull_request": {
+    "number": 1,
+    "title": "Updated Title",
+    "state": "open",
+    "html_url": "https://github.com/owner/repo/pull/1"
+  }
+}
+```
+
+**Examples**:
+
+```python
+# Update PR title
+github_update_pull_request("Ntrakiyski", "chrome-mcp", 1, title="New Feature: GitHub PR Tools")
+
+# Update PR body
+github_update_pull_request(
+    "Ntrakiyski", 
+    "chrome-mcp", 
+    1, 
+    body="## Changes\n- Added PR tools\n- Updated docs"
+)
+
+# Close PR
+github_update_pull_request("Ntrakiyski", "chrome-mcp", 1, state="closed")
+
+# Change base branch
+github_update_pull_request("Ntrakiyski", "chrome-mcp", 1, base="develop")
+
+# Update multiple fields
+github_update_pull_request(
+    "Ntrakiyski",
+    "chrome-mcp",
+    1,
+    title="Updated Title",
+    body="New description",
+    state="open"
+)
+```
+
+---
+
 ## Coolify API Tools
 
 **Note**: The following hardcoded values are used by default:
