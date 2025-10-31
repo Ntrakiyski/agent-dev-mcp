@@ -1734,6 +1734,92 @@ async def github_update_pull_request(
             'success': False,
             'message': error_msg
         }
+
+@mcp.tool()
+async def github_set_pr_ready_for_review(
+    owner: str,
+    repo: str,
+    pull_number: int,
+    api_token: Optional[str] = None
+) -> dict:
+    """
+    Mark a draft pull request as ready for review.
+    
+    Converts a draft PR to a regular PR that can be reviewed and merged.
+    
+    Args:
+        owner: Repository owner username (e.g., "Ntrakiyski")
+        repo: Repository name (e.g., "chrome-mcp")
+        pull_number: Pull request number to mark as ready
+        api_token: GitHub API token (optional, defaults to GITHUB_API_TOKEN env var)
+    
+    Returns:
+        dict: {
+            'success': bool,
+            'message': str,
+            'pull_request': {
+                'number': int,
+                'title': str,
+                'state': str,
+                'draft': bool,
+                'html_url': str
+            }
+        }
+    
+    Examples:
+        - github_set_pr_ready_for_review("Ntrakiyski", "chrome-mcp", 4)
+        - github_set_pr_ready_for_review("owner", "repo", 15)
+    """
+    logger.info(f"Marking PR #{pull_number} as ready for review in {owner}/{repo}")
+    
+    token = api_token or GITHUB_API_TOKEN
+    if not token:
+        return {
+            'success': False,
+            'message': 'GITHUB_API_TOKEN environment variable must be set'
+        }
+    
+    try:
+        url = f"{GITHUB_API_BASE_URL}/repos/{owner}/{repo}/pulls/{pull_number}"
+        headers = {
+            "Authorization": f"token {token}",
+            "Accept": "application/vnd.github+json",
+            "X-GitHub-Api-Version": "2022-11-28",
+            "Content-Type": "application/json"
+        }
+        
+        payload = {"draft": False}
+        
+        async with aiohttp.ClientSession() as session:
+            async with session.patch(url, headers=headers, json=payload) as response:
+                if response.status == 200:
+                    pr = await response.json()
+                    logger.info(f"PR #{pull_number} marked as ready for review")
+                    return {
+                        'success': True,
+                        'message': f"Pull request #{pull_number} marked as ready for review.",
+                        'pull_request': {
+                            'number': pr.get('number'),
+                            'title': pr.get('title'),
+                            'state': pr.get('state'),
+                            'draft': pr.get('draft', False),
+                            'html_url': pr.get('html_url')
+                        }
+                    }
+                else:
+                    error_data = await response.json()
+                    error_msg = error_data.get('message', f'API request failed with status {response.status}')
+                    raise Exception(error_msg)
+                    
+    except Exception as e:
+        error_msg = f"Failed to update pull request: {str(e)}"
+        logger.error(error_msg)
+        return {
+            'success': False,
+            'message': error_msg
+        }
+
+
 # =============================================================================
 # GITHUB FILE MANAGEMENT TOOLS
 # =============================================================================
@@ -2617,7 +2703,7 @@ if __name__ == "__main__":
     logger.info("  - GitHub: github_create_repo, github_fork_repo, github_list_repos, github_search_repo, github_get_repo_tree,")
     logger.info("            github_list_pull_requests, github_get_pull_request, github_merge_pull_request,")
     logger.info("            github_list_pull_request_files, github_check_pull_request_merged, github_update_pull_request,")
-    logger.info("            github_get_file_content, github_update_file, github_create_file")
+    logger.info("            github_set_pr_ready_for_review, github_get_file_content, github_update_file, github_create_file")
     logger.info("  - Coolify: coolify_list_applications, coolify_list_servers, coolify_get_server_details,")
     logger.info("             coolify_create_application, coolify_restart_application, coolify_stop_application,")
     logger.info("             get_coolify_domain_and_envs")

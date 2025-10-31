@@ -969,7 +969,75 @@ github_update_pull_request(
 
 ---
 
-### 11. `github_get_repo_tree`
+### 11. `github_set_pr_ready_for_review`
+
+**Description**: Mark a draft pull request as ready for review, converting it to a regular PR that can be reviewed and merged.
+
+**Input Parameters**:
+
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| `owner` | string | ✅ Yes | - | Repository owner username (user or organization) |
+| `repo` | string | ✅ Yes | - | Repository name |
+| `pull_number` | integer | ✅ Yes | - | Pull request number to mark as ready |
+| `api_token` | string | ❌ No | env:`GITHUB_API_TOKEN` | GitHub API token |
+
+**Output Schema**:
+
+**Success Response**:
+
+```json
+{
+  "success": true,
+  "message": "Pull request #4 marked as ready for review.",
+  "pull_request": {
+    "number": 4,
+    "title": "Feature X implementation",
+    "state": "open",
+    "draft": false,
+    "html_url": "https://github.com/owner/repo/pull/4"
+  }
+}
+```
+
+**Error Response**:
+
+```json
+{
+  "success": false,
+  "message": "Failed to update pull request: [error details]"
+}
+```
+
+**Examples**:
+
+```python
+# Mark a draft PR as ready for review
+github_set_pr_ready_for_review("Ntrakiyski", "chrome-mcp", 4)
+
+# Mark PR in another repository as ready
+github_set_pr_ready_for_review("owner", "repo", 15)
+
+# With custom API token
+github_set_pr_ready_for_review("Ntrakiyski", "chrome-mcp", 4, api_token="ghp_...")
+```
+
+**cURL Example**:
+
+```bash
+curl -L \
+  -X PATCH \
+  -H "Accept: application/vnd.github+json" \
+  -H "Authorization: Bearer YOUR_GITHUB_TOKEN" \
+  -H "X-GitHub-Api-Version: 2022-11-28" \
+  https://api.github.com/repos/owner/repo/pulls/4 \
+  -d '{"draft": false}'
+```
+
+---
+
+
+### 12. `github_get_repo_tree`
 
 **Description**: Get the complete file/folder structure of a GitHub repository.
 
@@ -1023,7 +1091,7 @@ github_get_repo_tree("Ntrakiyski", "chrome-mcp", branch="develop")
 
 ---
 
-### 12. `github_get_file_content`
+### 13. `github_get_file_content`
 
 **Description**: Get the content of a file from a GitHub repository.
 
@@ -1065,7 +1133,7 @@ sha = result["file"]["sha"]  # Save this for updates!
 
 ---
 
-### 13. `github_update_file`
+### 14. `github_update_file`
 
 **Description**: Update an existing file in a GitHub repository.
 
@@ -1122,7 +1190,7 @@ github_update_file(
 
 ---
 
-### 14. `github_create_file`
+### 15. `github_create_file`
 
 **Description**: Create a new file in a GitHub repository.
 
