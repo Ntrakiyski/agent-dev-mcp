@@ -1423,7 +1423,72 @@ coolify_create_application(
 
 ---
 
-### 5. `coolify_restart_application`
+### 5. `coolify_create_private_github_app_application`
+
+**Description**: Create and deploy a new application in Coolify from a private GitHub repository using GitHub App integration. Specifically designed for docker-compose deployments with compose files in the root directory.
+
+**Input Parameters**:
+
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| `github_app_uuid` | string | ✅ Yes | - | UUID of the GitHub App configured in Coolify Sources |
+| `git_repository` | string | ✅ Yes | - | Repository identifier (e.g., "Ntrakiyski/chrome-mcp") |
+| `name` | string | ✅ Yes | - | Application name in Coolify |
+| `git_branch` | string | ❌ No | `"main"` | Git branch to deploy |
+| `build_pack` | string | ❌ No | `"dockercompose"` | Build pack type |
+| `docker_compose_location` | string | ❌ No | `"docker-compose.yml"` | Path to docker-compose file |
+| `instant_deploy` | boolean | ❌ No | `true` | Whether to deploy immediately after creation |
+| `environment_name` | string | ❌ No | `"production"` | Environment name |
+| `project_uuid` | string | ❌ No | `j0ck0c4kckgw0gosksosogog` | Coolify project UUID |
+| `server_uuid` | string | ❌ No | `qk48swgog4kok0og8848wwg8` | Coolify server UUID |
+| `domains` | string | ❌ No | `null` | Comma-separated domains (e.g., "app.example.com,www.app.example.com") |
+| `api_token` | string | ❌ No | env:`COOLIFY_API_TOKEN` | Coolify API token |
+
+**Output Schema**:
+
+```json
+{
+  "success": true,
+  "message": "Private application created successfully",
+  "application_uuid": "app-xyz789-uuid",
+  "application": {
+    "uuid": "app-xyz789-uuid",
+    "name": "my-private-app",
+    "git_repository": "Ntrakiyski/chrome-mcp",
+    "git_branch": "main",
+    "build_pack": "dockercompose",
+    "status": "deploying",
+    "domains": "app.example.com",
+    "fqdn": "app.example.com",
+    "environment_name": "production"
+  }
+}
+```
+
+**Examples**:
+
+```python
+# Basic private repository deployment
+coolify_create_private_github_app_application(
+    "github-app-uuid-here",
+    "Ntrakiyski/chrome-mcp",
+    "my-private-app"
+)
+
+# Private repository with custom settings
+coolify_create_private_github_app_application(
+    github_app_uuid="github-app-uuid-here",
+    git_repository="Ntrakiyski/chrome-mcp",
+    name="test-app",
+    git_branch="develop",
+    domains="test.example.com",
+    instant_deploy=False
+)
+```
+
+---
+
+### 6. `coolify_restart_application`
 
 **Description**: Restart a Coolify application.
 
@@ -1451,7 +1516,7 @@ coolify_restart_application("app-uuid-here")
 
 ---
 
-### 6. `coolify_stop_application`
+### 7. `coolify_stop_application`
 
 **Description**: Stop a Coolify application.
 
@@ -1479,7 +1544,7 @@ coolify_stop_application("app-uuid-here")
 
 ---
 
-### 7. `get_coolify_domain_and_envs`
+### 8. `get_coolify_domain_and_envs`
 
 **Description**: Get domain and all environment variables for a Coolify application in a single call.
 
