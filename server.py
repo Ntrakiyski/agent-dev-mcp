@@ -2619,7 +2619,8 @@ if __name__ == "__main__":
     logger.info("            github_list_pull_request_files, github_check_pull_request_merged, github_update_pull_request,")
     logger.info("            github_get_file_content, github_update_file, github_create_file")
     logger.info("  - Coolify: coolify_list_applications, coolify_list_servers, coolify_get_server_details,")
-    logger.info("             coolify_create_application, coolify_restart_application, coolify_stop_application,")
+    logger.info("             coolify_create_application, coolify_create_private_github_app_application,")
+    logger.info("             coolify_restart_application, coolify_stop_application,")
     logger.info("             get_coolify_domain_and_envs")
     logger.info(f"ImgBB configured: {bool(IMGBB_API_KEY)}")
     logger.info(f"OpenRouter configured: {bool(OPENROUTER_API_KEY)}")
@@ -2628,3 +2629,118 @@ if __name__ == "__main__":
     logger.info(f"Coolify configured: {bool(COOLIFY_API_TOKEN)}")
     
     mcp.run(transport="http", host="0.0.0.0", port=8000)
+@mcp.tool()
+async def coolify_create_private_github_app_application(
+    github_app_uuid: str,
+    git_repository: str,
+    name: str,
+    git_branch: str = "main",
+    build_pack: str = "dockercompose",
+    docker_compose_location: str = "docker-compose.yml",
+    instant_deploy: bool = True,
+    environment_name: str = "production",
+    project_uuid: Optional[str] = None,
+    server_uuid: Optional[str] = None,
+    domains: Optional[str] = None,
+    api_token: Optional[str] = None
+) -> dict:
+    """
+    Create and deploy a new application in Coolify from a private GitHub repository using GitHub App integration.
+    Specifically designed for docker-compose deployments with compose files in the root directory.
+
+    Args:
+        github_app_uuid: UUID of the GitHub App configured in Coolify Sources (required)
+        git_repository: Repository identifier (required, e.g., "Ntrakiyski/chrome-mcp")
+        name: Application name in Coolify (required)
+        git_branch: Git branch to deploy (default: "main")
+        build_pack: Build pack type (default: "dockercompose")
+        docker_compose_location: Path to docker-compose file (default: "docker-compose.yml")
+        instant_deploy: Whether to deploy immediately after creation (default: True)
+        environment_name: Environment name (default: "production")
+        project_uuid: Coolify project UUID (optional, defaults to hardcoded value)
+        server_uuid: Coolify server UUID (optional, defaults to hardcoded value)
+        domains: Comma-separated domains (optional, e.g., "app.example.com,www.app.example.com")
+        api_token: Coolify API token (optional, defaults to COOLIFY_API_TOKEN env var)
+
+    Returns:
+        dict: {
+            'success': bool,
+            'message': str,
+            'application_uuid': str,
+            'application': dict
+        }
+
+    Examples:
+        - coolify_create_private_github_app_application("github-app-uuid", "Ntrakiyski/chrome-mcp", "my-private-app")
+        - coolify_create_private_github_app_application("github-app-uuid", "Ntrakiyski/chrome-mcp", "test-app", git_branch="develop", domains="test.example.com")
+    """
+    logger.info(f"Creating Coolify private GitHub App application: {name} from {git_repository}")
+
+    token = api_token or COOLIFY_API_TOKEN
+    project_id = project_uuid or COOLIFY_PROJECT_UUID
+    server_id = server_uuid or COOLIFY_SERVER_UUID
+
+    if not token:
+        return {
+            'success': False,
+            'message': 'COOLIFY_API_TOKEN environment variable must be set'
+        }
+
+    try:
+        url = f"{COOLIFY_API_BASE_URL}/applications/private-github-app"
+        headers = {
+            "Authorization": f"Bearer {token}",
+            "Content-Type": "application/json"
+        }
+        payload = {
+            "project_uuid": project_id,
+            "server_uuid": server_id,
+            "environment_name": environment_name,
+            "github_app_uuid": github_app_uuid,
+            "git_repository": git_repository,
+            "git_branch": git_branch,
+            "name": name,
+            "build_pack": build_pack,
+            "docker_compose_location": docker_compose_location,
+            "instant_deploy": instant_deploy
+        }
+
+        # Add domains if provided
+        if domains:
+            payload["domains"] = domains
+
+        async with aiohttp.ClientSession() as session:
+            async with session.post(url, headers=headers, json=payload) as response:
+                result = await response.json()
+
+                if response.status == 200 or response.status == 201:
+                    app_uuid = result.get('uuid', result.get('id'))
+                    logger.info(f"Private application created successfully: {name} (UUID: {app_uuid})")
+                    return {
+                        'success': True,
+                        'message': 'Private application created successfully',
+                        'application_uuid': app_uuid,
+                        'application': {
+                            'uuid': app_uuid,
+                            'name': name,
+                            'git_repository': git_repository,
+                            'git_branch': git_branch,
+                            'build_pack': build_pack,
+                            'status': result.get('status', 'created'),
+                            'domains': domains,
+                            'fqdn': result.get('fqdn', ''),
+                            'environment_name': environment_name
+                        }
+                    }
+                else:
+                    error_msg = result.get('message', f'API request failed with status {response.status}')
+                    raise Exception(error_msg)
+
+    except Exception as e:
+        error_msg = f"Failed to create private application: {str(e)}"
+        logger.error(error_msg)
+        return {
+            'success': False,
+            'message': error_msg
+        }
+
