@@ -915,6 +915,116 @@ async def github_create_repo(
         }
 
 
+
+@mcp.tool()
+async def github_fork_repo(
+    owner: str,
+    repo: str,
+    organization: Optional[str] = None,
+    name: Optional[str] = None,
+    default_branch_only: bool = False,
+    api_token: Optional[str] = None
+) -> dict:
+    """
+    Fork a GitHub repository to your account or organization.
+    
+    Creates a private fork that maintains connection to the upstream repository.
+    
+    Args:
+        owner: Repository owner username (e.g., "Ntrakiyski")
+        repo: Repository name to fork (e.g., "chrome-mcp")
+        organization: Optional organization name if forking into an organization
+        name: Custom name for the fork (useful when forking within same org)
+        default_branch_only: If true, fork only the default branch (default: False)
+        api_token: GitHub API token (optional, defaults to GITHUB_API_TOKEN env var)
+    
+    Returns:
+        dict: {
+            'success': bool,
+            'message': str,
+            'fork': {
+                'name': str,
+                'full_name': str,
+                'owner': str,
+                'url': str,
+                'clone_url': str,
+                'ssh_url': str,
+                'private': bool,
+                'fork': bool,
+                'parent_repo': str,
+                'default_branch': str
+            },
+            'note': str
+        }
+    
+    Examples:
+        - github_fork_repo("Ntrakiyski", "chrome-mcp")
+        - github_fork_repo("Ntrakiyski", "chrome-mcp", organization="my-org")
+        - github_fork_repo("Ntrakiyski", "chrome-mcp", name="my-fork", default_branch_only=True)
+    """
+    logger.info(f"Forking GitHub repository: {owner}/{repo}")
+    
+    token = api_token or GITHUB_API_TOKEN
+    if not token:
+        return {
+            'success': False,
+            'message': 'GITHUB_API_TOKEN environment variable must be set'
+        }
+    
+    try:
+        url = f"{GITHUB_API_BASE_URL}/repos/{owner}/{repo}/forks"
+        headers = {
+            "Authorization": f"token {token}",
+            "Accept": "application/vnd.github+json",
+            "X-GitHub-Api-Version": "2022-11-28",
+            "Content-Type": "application/json"
+        }
+        
+        # Build payload with optional parameters
+        payload = {}
+        if organization:
+            payload["organization"] = organization
+        if name:
+            payload["name"] = name
+        if default_branch_only:
+            payload["default_branch_only"] = default_branch_only
+        
+        async with aiohttp.ClientSession() as session:
+            async with session.post(url, headers=headers, json=payload) as response:
+                result = await response.json()
+                
+                if response.status == 202:
+                    logger.info(f"Repository forked successfully: {result.get('full_name')}")
+                    return {
+                        'success': True,
+                        'message': 'Repository forked successfully',
+                        'fork': {
+                            'name': result.get('name'),
+                            'full_name': result.get('full_name'),
+                            'owner': result.get('owner', {}).get('login'),
+                            'url': result.get('html_url'),
+                            'clone_url': result.get('clone_url'),
+                            'ssh_url': result.get('ssh_url'),
+                            'private': result.get('private', True),
+                            'fork': result.get('fork', True),
+                            'parent_repo': f"{owner}/{repo}",
+                            'default_branch': result.get('default_branch')
+                        },
+                        'note': 'Fork is being created asynchronously. It may take a few moments for git objects to be accessible.'
+                    }
+                else:
+                    error_msg = result.get('message', f'API request failed with status {response.status}')
+                    raise Exception(error_msg)
+                    
+    except Exception as e:
+        error_msg = f"Failed to fork repository: {str(e)}"
+        logger.error(error_msg)
+        return {
+            'success': False,
+            'message': error_msg
+        }
+
+
 @mcp.tool()
 async def github_list_repos(
     per_page: int = 100,
@@ -2504,7 +2614,7 @@ if __name__ == "__main__":
     logger.info("  - Screenshot: take_screenshot, get_page_title, ask_about_screenshot, health_check")
     logger.info("  - Codegen: codegen_create_agent_run, codegen_get_agent_run, codegen_reply_to_agent_run,")
     logger.info("             codegen_list_agent_runs, codegen_cancel_agent_run")
-    logger.info("  - GitHub: github_create_repo, github_list_repos, github_search_repo, github_get_repo_tree,")
+    logger.info("  - GitHub: github_create_repo, github_fork_repo, github_list_repos, github_search_repo, github_get_repo_tree,")
     logger.info("            github_list_pull_requests, github_get_pull_request, github_merge_pull_request,")
     logger.info("            github_list_pull_request_files, github_check_pull_request_merged, github_update_pull_request,")
     logger.info("            github_get_file_content, github_update_file, github_create_file")

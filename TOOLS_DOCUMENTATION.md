@@ -475,7 +475,79 @@ github_create_repo("test-repo", private=False)
 
 ---
 
-### 2. `github_list_repos`
+### 2. `github_fork_repo`
+
+**Description**: Fork a GitHub repository to your account or organization. Creates a private fork that maintains connection to the upstream repository.
+
+**Input Parameters**:
+
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| `owner` | string | ✅ Yes | - | Repository owner username (e.g., "Ntrakiyski") |
+| `repo` | string | ✅ Yes | - | Repository name to fork (e.g., "chrome-mcp") |
+| `organization` | string | ❌ No | `null` | Optional organization name if forking into an organization |
+| `name` | string | ❌ No | `null` | Custom name for the fork (useful when forking within same org) |
+| `default_branch_only` | boolean | ❌ No | `false` | If true, fork only the default branch |
+| `api_token` | string | ❌ No | env:`GITHUB_API_TOKEN` | GitHub API token |
+
+**Output Schema**:
+
+```json
+{
+  "success": true,
+  "message": "Repository forked successfully",
+  "fork": {
+    "name": "chrome-mcp",
+    "full_name": "Ntrakiyski/chrome-mcp",
+    "owner": "Ntrakiyski",
+    "url": "https://github.com/Ntrakiyski/chrome-mcp",
+    "clone_url": "https://github.com/Ntrakiyski/chrome-mcp.git",
+    "ssh_url": "git@github.com:Ntrakiyski/chrome-mcp.git",
+    "private": true,
+    "fork": true,
+    "parent_repo": "original-owner/chrome-mcp",
+    "default_branch": "main"
+  },
+  "note": "Fork is being created asynchronously. It may take a few moments for git objects to be accessible."
+}
+```
+
+**Error Response**:
+
+```json
+{
+  "success": false,
+  "message": "Repository already exists or fork failed: [error details]"
+}
+```
+
+**Examples**:
+
+```python
+# Basic private fork
+github_fork_repo("Ntrakiyski", "chrome-mcp")
+
+# Fork into an organization
+github_fork_repo("Ntrakiyski", "chrome-mcp", organization="my-org")
+
+# Fork with custom name and only default branch
+github_fork_repo("Ntrakiyski", "chrome-mcp", name="my-fork", default_branch_only=True)
+```
+
+**cURL Example**:
+
+```bash
+curl -L \
+  -X POST \
+  -H "Accept: application/vnd.github+json" \
+  -H "Authorization: Bearer YOUR_GITHUB_TOKEN" \
+  -H "X-GitHub-Api-Version: 2022-11-28" \
+  https://api.github.com/repos/Ntrakiyski/chrome-mcp/forks
+```
+
+---
+
+### 3. `github_list_repos`
 
 **Description**: List all GitHub repositories for the authenticated user.
 
@@ -517,7 +589,7 @@ github_list_repos(per_page=50, page=2)
 
 ---
 
-### 3. `github_search_repo`
+### 4. `github_search_repo`
 
 **Description**: Search for a specific GitHub repository.
 
@@ -559,7 +631,7 @@ github_search_repo("react", username="facebook")
 
 ---
 
-### 4. `github_list_pull_requests`
+### 5. `github_list_pull_requests`
 
 **Description**: List pull requests in a GitHub repository with state filtering.
 
@@ -614,7 +686,7 @@ github_list_pull_requests("Ntrakiyski", "chrome-mcp", state="closed", per_page=5
 
 ---
 
-### 5. `github_get_pull_request`
+### 6. `github_get_pull_request`
 
 **Description**: Get detailed information about a specific pull request including mergeable state, commit count, and file statistics.
 
@@ -672,7 +744,7 @@ if result["pull_request"]["mergeable"]:
 
 ---
 
-### 6. `github_merge_pull_request`
+### 7. `github_merge_pull_request`
 
 **Description**: Merge a pull request using merge, squash, or rebase strategy.
 
@@ -737,7 +809,7 @@ github_merge_pull_request("Ntrakiyski", "chrome-mcp", 1, merge_method="rebase")
 
 ---
 
-### 7. `github_list_pull_request_files`
+### 8. `github_list_pull_request_files`
 
 **Description**: List all files changed in a pull request with addition/deletion statistics.
 
@@ -786,7 +858,7 @@ github_list_pull_request_files("Ntrakiyski", "chrome-mcp", 1, per_page=50, page=
 
 ---
 
-### 8. `github_check_pull_request_merged`
+### 9. `github_check_pull_request_merged`
 
 **Description**: Check if a pull request has been merged (returns 204 if merged, 404 if not merged).
 
@@ -832,7 +904,7 @@ else:
 
 ---
 
-### 9. `github_update_pull_request`
+### 10. `github_update_pull_request`
 
 **Description**: Update a pull request's title, body, state, or base branch.
 
@@ -897,7 +969,7 @@ github_update_pull_request(
 
 ---
 
-### 10. `github_get_repo_tree`
+### 11. `github_get_repo_tree`
 
 **Description**: Get the complete file/folder structure of a GitHub repository.
 
@@ -951,7 +1023,7 @@ github_get_repo_tree("Ntrakiyski", "chrome-mcp", branch="develop")
 
 ---
 
-### 11. `github_get_file_content`
+### 12. `github_get_file_content`
 
 **Description**: Get the content of a file from a GitHub repository.
 
@@ -993,7 +1065,7 @@ sha = result["file"]["sha"]  # Save this for updates!
 
 ---
 
-### 12. `github_update_file`
+### 13. `github_update_file`
 
 **Description**: Update an existing file in a GitHub repository.
 
@@ -1050,7 +1122,7 @@ github_update_file(
 
 ---
 
-### 13. `github_create_file`
+### 14. `github_create_file`
 
 **Description**: Create a new file in a GitHub repository.
 
