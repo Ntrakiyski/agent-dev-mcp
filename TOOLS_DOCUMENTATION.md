@@ -1544,11 +1544,74 @@ coolify_stop_application("app-uuid-here")
 
 ---
 
-### 8. `get_coolify_domain_and_envs`
+### 5. `coolify_create_private_github_app_application`
 
-**Description**: Get domain and all environment variables for a Coolify application in a single call.
+**Description**: Create and deploy a new application in Coolify from a private GitHub repository using GitHub App integration. Specifically designed for docker-compose deployments with compose files in the root directory.
 
-This tool retrieves both the application's domain/FQDN and all environment variables, making it convenient to get complete deployment configuration information without making multiple API calls.
+**Input Parameters**:
+
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| `github_app_uuid` | string | ✅ Yes | - | UUID of the GitHub App configured in Coolify Sources |
+| `git_repository` | string | ✅ Yes | - | Repository identifier (e.g., "Ntrakiyski/chrome-mcp") |
+| `name` | string | ✅ Yes | - | Application name in Coolify |
+| `git_branch` | string | ❌ No | `"main"` | Git branch to deploy |
+| `build_pack` | string | ❌ No | `"dockercompose"` | Build pack type |
+| `docker_compose_location` | string | ❌ No | `"docker-compose.yml"` | Path to docker-compose file |
+| `instant_deploy` | boolean | ❌ No | `true` | Whether to deploy immediately after creation |
+| `environment_name` | string | ❌ No | `"production"` | Environment name |
+| `project_uuid` | string | ❌ No | `j0ck0c4kckgw0gosksosogog` | Coolify project UUID |
+| `server_uuid` | string | ❌ No | `qk48swgog4kok0og8848wwg8` | Coolify server UUID |
+| `domains` | string | ❌ No | `null` | Comma-separated domains (e.g., "app.example.com,www.app.example.com") |
+| `api_token` | string | ❌ No | env:`COOLIFY_API_TOKEN` | Coolify API token |
+
+**Output Schema**:
+
+```json
+{
+  "success": true,
+  "message": "Private application created successfully",
+  "application_uuid": "app-xyz789-uuid",
+  "application": {
+    "uuid": "app-xyz789-uuid",
+    "name": "my-private-app",
+    "git_repository": "Ntrakiyski/chrome-mcp",
+    "git_branch": "main",
+    "build_pack": "dockercompose",
+    "status": "deploying",
+    "domains": "app.example.com",
+    "fqdn": "app.example.com",
+    "environment_name": "production"
+  }
+}
+```
+
+**Examples**:
+
+```python
+# Basic private repository deployment
+coolify_create_private_github_app_application(
+    "github-app-uuid-here",
+    "Ntrakiyski/chrome-mcp",
+    "my-private-app"
+)
+
+# Private repository with custom settings
+coolify_create_private_github_app_application(
+    github_app_uuid="github-app-uuid-here",
+    git_repository="Ntrakiyski/chrome-mcp",
+    name="test-app",
+    git_branch="develop",
+    domains="test.example.com",
+    instant_deploy=False
+)
+```
+
+---
+
+### 6. `coolify_restart_application`
+
+**Description**: Restart a Coolify application.
 
 **Input Parameters**:
 
@@ -1562,93 +1625,47 @@ This tool retrieves both the application's domain/FQDN and all environment varia
 ```json
 {
   "success": true,
-  "message": "Successfully retrieved domain and environment variables",
-  "application_uuid": "app-uuid",
-  "domain": "myapp.example.com",
-  "fqdn": "myapp.example.com",
-  "environment_variables": [
-    {
-      "id": 1,
-      "uuid": "env-uuid",
-      "key": "DATABASE_URL",
-      "value": "[REDACTED]",
-      "real_value": "[REDACTED]",
-      "is_literal": true,
-      "is_multiline": false,
-      "is_preview": false,
-      "is_runtime": true,
-      "is_buildtime": false,
-      "is_shared": false,
-      "is_shown_once": false,
-      "version": "1.0",
-      "created_at": "2024-01-01T00:00:00Z",
-      "updated_at": "2024-01-01T00:00:00Z"
-    },
-    {
-      "id": 2,
-      "uuid": "env-uuid-2",
-      "key": "NODE_ENV",
-      "value": "production",
-      "real_value": "production",
-      "is_literal": true,
-      "is_multiline": false,
-      "is_preview": false,
-      "is_runtime": true,
-      "is_buildtime": true,
-      "is_shared": false,
-      "is_shown_once": false,
-      "version": "1.0",
-      "created_at": "2024-01-01T00:00:00Z",
-      "updated_at": "2024-01-01T00:00:00Z"
-    }
-  ]
+  "message": "Application restarted successfully"
 }
 ```
-
-**Environment Variable Fields**:
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `id` | integer | Database ID of the environment variable |
-| `uuid` | string | Unique identifier for the environment variable |
-| `key` | string | Environment variable name |
-| `value` | string | Masked/displayed value (sensitive values may be masked) |
-| `real_value` | string | Actual unmasked value |
-| `is_literal` | boolean | Whether the value is literal or computed |
-| `is_multiline` | boolean | Whether the value spans multiple lines |
-| `is_preview` | boolean | Whether this is a preview environment variable |
-| `is_runtime` | boolean | Whether this variable is available at runtime |
-| `is_buildtime` | boolean | Whether this variable is available at build time |
-| `is_shared` | boolean | Whether this variable is shared across environments |
-| `is_shown_once` | boolean | Whether this variable is shown only once for security |
-| `version` | string | Version of the environment variable |
-| `created_at` | string | ISO 8601 timestamp of creation |
-| `updated_at` | string | ISO 8601 timestamp of last update |
 
 **Examples**:
 
 ```python
-# Get domain and env vars for an application
-result = get_coolify_domain_and_envs("app-uuid-here")
-print(f"Domain: {result['domain']}")
-print(f"Found {len(result['environment_variables'])} environment variables")
-
-# Access specific environment variables
-for env_var in result['environment_variables']:
-    if env_var['key'] == 'DATABASE_URL':
-        print(f"Database URL: {env_var['real_value']}")
-
-# Use custom API token
-result = get_coolify_domain_and_envs(
-    app_uuid="app-uuid-here",
-    api_token="custom-token"
-)
+coolify_restart_application("app-uuid-here")
 ```
 
-**Use Cases**:
+---
 
-- **Deployment Configuration Audit**: Get all configuration in one call for documentation
-- **Environment Setup**: Retrieve all environment variables to replicate configuration
+### 7. `coolify_stop_application`
+
+**Description**: Stop a Coolify application.
+
+**Input Parameters**:
+
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| `app_uuid` | string | ✅ Yes | - | Application UUID |
+| `api_token` | string | ❌ No | env:`COOLIFY_API_TOKEN` | Coolify API token |
+
+**Output Schema**:
+
+```json
+{
+  "success": true,
+  "message": "Application stopped successfully"
+}
+```
+
+**Examples**:
+
+```python
+coolify_stop_application("app-uuid-here")
+```
+
+---
+
+### 8. `get_coolify_domain_and_envs`
 - **Domain Verification**: Confirm the correct domain is assigned to an application
 - **Configuration Debugging**: Check all environment variables and their values at once
 - **Migration Planning**: Export complete configuration before migrating applications
