@@ -1,4 +1,4 @@
-# Chrome MCP Server 🌐📸
+# Agent Dev MCP Server 🌐📸
 
 A production-ready Model Context Protocol (MCP) server that provides comprehensive automation capabilities including browser automation, AI vision, GitHub operations, and Coolify deployment management. Built with FastMCP and Playwright for maximum reliability and performance.
 
